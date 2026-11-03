@@ -5,7 +5,7 @@
 AI Data Modeler extends MetaForge Studio with an Archibase-style, AI-first workflow: four synchronized interfaces
 (Canvas, AI Companion, Dictionary, Editor), model generation from unstructured context, natural-language schema search,
 AI documentation and a privacy-first, metadata-only boundary. Pick the LLM per request: **Kiro CLI**, **Gemini CLI**,
-**Devin CLI**, the Google Gemini API, any OpenAI-compatible API, or the built-in offline engine.
+**Devin** (Devin cloud API), the Google Gemini API, any OpenAI-compatible API, or the built-in offline engine.
 
 ## AI-native features
 
@@ -30,11 +30,11 @@ AI documentation and a privacy-first, metadata-only boundary. Pick the LLM per r
 | Built-in (offline) | deterministic | no LLM; nothing leaves the machine |
 | **Kiro CLI** | headless CLI | `kiro-cli chat --no-interactive` (+ `--model`) |
 | **Gemini CLI** | headless CLI | `gemini -p …` (prompt streamed on stdin, `-m` model) |
-| **Devin CLI** | headless CLI | `devin --respect-workspace-trust=false -p --prompt-file …`; checks `devin auth status` |
+| **Devin** | Devin cloud API | starts a Devin session (`POST /v1/sessions`) that analyses the request against the model metadata and replies with the answer / proposed model changes; key from `DEVIN_API_KEY` (`.env` or `config.local.json` `devin_api_key`); optional `max_acu_limit` per request |
 | Google Gemini API | HTTPS | per-user key (Profile → AI API Keys) or `GEMINI_API_KEY` |
 | OpenAI-compatible | HTTPS | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` |
 
-CLI providers run on the machine that hosts the backend and use that machine's existing CLI login, so no API key
+Kiro CLI and Gemini CLI run on the machine that hosts the backend and use that machine's existing CLI login, so no API key
 is needed. Choose a provider in the AI Companion header. The gear icon lets you edit the command/model/timeout,
 **Test** the provider, and **Save as default** (saved to `workspace_model/ai_settings.json`, gitignored). If a
 provider fails or isn't installed, the request falls back to the built-in engine and shows a warning.

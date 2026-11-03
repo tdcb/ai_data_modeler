@@ -334,6 +334,8 @@ export const AICompanion: React.FC = () => {
           <div className="text-slate-400">
             {activeInfo.kind === 'cli'
               ? `${activeInfo.label} runs headless on the backend machine and reuses its existing login.`
+              : activeInfo.name === 'devin'
+              ? 'Each request runs as a Devin cloud session that analyses it against the model metadata. Needs DEVIN_API_KEY on the backend; replies can take a few minutes.'
               : activeInfo.kind === 'api'
               ? 'API key is read from Profile → AI API Keys or the backend environment.'
               : 'Deterministic, offline engine — nothing leaves this machine.'}

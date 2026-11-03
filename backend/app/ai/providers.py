@@ -1,7 +1,8 @@
 """LLM providers. Every provider exposes complete(prompt, system) -> str.
 
-CLI providers (Kiro CLI, Gemini CLI, Devin CLI) run headless subprocesses so the user's existing CLI login is
-reused (no API key). `builtin` is the offline, deterministic engine used when no LLM is configured.
+CLI providers (Kiro CLI, Gemini CLI) run headless subprocesses so the user's existing CLI login is
+reused (no API key). `devin` runs the request as a Devin cloud session via the Devin API.
+`builtin` is the offline, deterministic engine used when no LLM is configured.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,10 +36,10 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         "defaults": {"command": "gemini", "model": "", "timeout": 600},
     },
     "devin": {
-        "label": "Devin CLI (local)",
-        "kind": "cli",
-        "fields": ["command", "model", "timeout"],
-        "defaults": {"command": "devin --respect-workspace-trust=false -p", "model": "", "timeout": 900},
+        "label": "Devin",
+        "kind": "api",
+        "fields": ["api_base", "max_acu_limit", "timeout"],
+        "defaults": {"api_base": "https://api.devin.ai/v1", "max_acu_limit": "", "timeout": 1800},
     },
     "gemini_api": {
         "label": "Google Gemini API",
@@ -193,37 +193,64 @@ class GeminiCliProvider(Provider):
         )
 
 
-_DEVIN_AUTH_OK: set = set()
+DEVIN_ANALYST = (
+    "You are acting as the analysis engine of a data modeling application. Analyse the user's request against the "
+    "model metadata below and reply in this session's chat. Do not create pull requests, clone repositories, edit "
+    "files or run commands: everything you need is in this message. Send exactly one final message containing only "
+    "the requested output.\n\n"
+)
 
 
-class DevinCliProvider(Provider):
-    """Local Devin CLI in single-turn print mode with --prompt-file; reuses the CLI login on this machine."""
+class DevinApiProvider(Provider):
+    """Devin cloud API: each request runs as a Devin session that analyses it and replies with the result."""
+
+    poll_seconds = 10.0
+
+    def _key(self) -> str:
+        key = (self.api_key or os.getenv("DEVIN_API_KEY", "") or app_settings.devin_api_key).strip()
+        if not key:
+            raise LLMError("Devin API key missing: set DEVIN_API_KEY in .env / config.local.json on the backend.")
+        return key
 
     def _complete(self, prompt, system, images):
-        cmd = str(self.config.get("command") or PROVIDERS["devin"]["defaults"]["command"]).split()
-        exe = shutil.which(cmd[0])
-        if not exe:
-            raise LLMError(f"Devin CLI '{cmd[0]}' not found on PATH (install: https://cli.devin.ai)")
-        if exe not in _DEVIN_AUTH_OK:
-            st = subprocess.run(
-                [exe, "auth", "status"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                stdin=subprocess.DEVNULL,
-                encoding="utf-8",
-                errors="replace",
-            )
-            if st.returncode != 0 or "not logged in" in (st.stdout + st.stderr).lower():
-                raise LLMError("Devin CLI is not logged in on the machine running the backend. Run `devin auth login`.")
-            _DEVIN_AUTH_OK.add(exe)
-        if self.config.get("model"):
-            cmd += ["--model", str(self.config["model"])]
-        full = _with_images(CLI_TEXT_ONLY + (f"{system}\n\n" if system else "") + prompt, images, False)
-        with tempfile.TemporaryDirectory(prefix="aidm_devin_") as d:
-            pf = Path(d) / "prompt.md"
-            pf.write_text(full, encoding="utf-8")
-            return _run(cmd + ["--prompt-file", str(pf)], "", int(self.config.get("timeout", 900)), cwd=d)
+        base = str(self.config.get("api_base") or PROVIDERS["devin"]["defaults"]["api_base"]).rstrip("/")
+        hdr = {"Authorization": f"Bearer {self._key()}", "Content-Type": "application/json"}
+        body: Dict[str, Any] = {"prompt": DEVIN_ANALYST + (f"{system}\n\n" if system else "") + prompt,
+                                "idempotent": False, "title": "AI Data Modeler request"}
+        if str(self.config.get("max_acu_limit") or "").strip():
+            body["max_acu_limit"] = int(self.config["max_acu_limit"])
+        r = httpx.post(f"{base}/sessions", headers=hdr, json=body, timeout=60)
+        if r.status_code >= 300:
+            raise LLMError(f"Devin API error {r.status_code}: {r.text[:300]}")
+        created = r.json()
+        sid = created.get("session_id")
+        self.last_session_url = created.get("url", "")
+        deadline = time.time() + int(self.config.get("timeout") or 1800)
+        while time.time() < deadline:
+            time.sleep(self.poll_seconds)
+            g = httpx.get(f"{base}/session/{sid}", headers=hdr, timeout=60)
+            if g.status_code >= 300:
+                continue
+            d = g.json()
+            status = str(d.get("status_enum") or d.get("status") or "").lower()
+            msgs = [m for m in (d.get("messages") or []) if m.get("type") == "devin_message" and m.get("message")]
+            if d.get("structured_output"):
+                return json.dumps(d["structured_output"])
+            if status in ("blocked", "finished", "stopped", "expired", "suspend_requested") and msgs:
+                return str(msgs[-1]["message"])
+            if status in ("stopped", "expired", "finished") and not msgs:
+                raise LLMError(f"Devin session {sid} ended ({status}) without a reply")
+        raise LLMError(f"Devin session {sid} did not reply within {self.config.get('timeout')}s")
+
+    def test(self) -> Dict[str, Any]:
+        try:
+            base = str(self.config.get("api_base") or PROVIDERS["devin"]["defaults"]["api_base"]).rstrip("/")
+            r = httpx.get(f"{base}/sessions", params={"limit": 1},
+                          headers={"Authorization": f"Bearer {self._key()}"}, timeout=30)
+            return {"ok": r.status_code == 200, "output": "API key accepted" if r.status_code == 200
+                    else f"HTTP {r.status_code}: {r.text[:200]}"}
+        except Exception as e:
+            return {"ok": False, "output": str(e)[:500]}
 
 
 class GeminiApiProvider(Provider):
@@ -277,7 +304,7 @@ _CLASSES = {
     "builtin": BuiltinProvider,
     "kiro": KiroProvider,
     "gemini_cli": GeminiCliProvider,
-    "devin": DevinCliProvider,
+    "devin": DevinApiProvider,
     "gemini_api": GeminiApiProvider,
     "openai": OpenAIProvider,
 }
@@ -296,7 +323,7 @@ def detect_available() -> Dict[str, bool]:
         "builtin": True,
         "kiro": bool(shutil.which("kiro-cli")),
         "gemini_cli": bool(shutil.which("gemini")),
-        "devin": bool(shutil.which("devin")),
+        "devin": bool(os.getenv("DEVIN_API_KEY") or app_settings.devin_api_key),
         "gemini_api": bool(os.getenv("GEMINI_API_KEY") or app_settings.gemini_api_key),
         "openai": bool(os.getenv("LLM_API_KEY") or app_settings.llm_api_key),
     }

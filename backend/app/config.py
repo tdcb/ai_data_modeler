@@ -86,6 +86,7 @@ class Settings(BaseModel):
     llm_model: str = _cfg("LLM_MODEL", "llm_model", "gpt-4o")
     gemini_api_key: str = _cfg("GEMINI_API_KEY", "gemini_api_key", "")
     gemini_model: str = _cfg("GEMINI_MODEL", "gemini_model", "gemini-2.5-flash")
+    devin_api_key: str = _cfg("DEVIN_API_KEY", "devin_api_key", "")
 
 
 settings = Settings()

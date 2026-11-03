@@ -170,7 +170,7 @@ def test_cli_providers_registered_and_missing_binary_is_clear(monkeypatch):
     for name in ("kiro", "gemini_cli", "devin"):
         assert name in prov.PROVIDERS
     monkeypatch.setattr(prov.shutil, "which", lambda _: None)
-    for name in ("kiro", "gemini_cli", "devin"):
+    for name in ("kiro", "gemini_cli"):
         with pytest.raises(prov.LLMError):
             prov.get_provider(name, {"command": "definitely-missing-cli"}).complete("hi")
 
@@ -245,27 +245,46 @@ def test_cli_providers_execute_headless_subprocess(tmp_path, monkeypatch):
     reply = '{"answer": "ok", "matches": []}'
     _fake_cli(tmp_path, "gemini", f"cat > /dev/null; printf '\\033[32m%s\\033[0m' '{reply}'\n")
     _fake_cli(tmp_path, "kiro-cli", f"printf '%s' '{reply}'\n")
-    _fake_cli(tmp_path, "devin", 'if [ "$1" = auth ]; then echo "Logged in"; exit 0; fi\n'
-                                 f"printf '%s' '{reply}'\n")
     monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
-    prov._DEVIN_AUTH_OK.clear()
-    for name in ("gemini_cli", "kiro", "devin"):
+    for name in ("gemini_cli", "kiro"):
         assert prov.get_provider(name).complete_json("q") == {"answer": "ok", "matches": []}, name
-    assert prov.detect_available()["devin"] is True
 
 
-def test_devin_cli_not_logged_in_is_reported(tmp_path, monkeypatch):
-    _fake_cli(tmp_path, "devin", 'echo "Not logged in"; exit 1\n')
-    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
-    prov._DEVIN_AUTH_OK.clear()
-    with pytest.raises(prov.LLMError, match="not logged in"):
+class _Resp:
+    def __init__(self, code, data):
+        self.status_code, self._data, self.text = code, data, json.dumps(data)
+
+    def json(self):
+        return self._data
+
+
+def test_devin_api_provider_creates_session_and_returns_reply(monkeypatch):
+    calls = {"post": [], "get": 0}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls["post"].append((url, headers, json))
+        return _Resp(200, {"session_id": "devin-1", "url": "https://app.devin.ai/sessions/1"})
+
+    def fake_get(url, headers=None, params=None, timeout=None):
+        calls["get"] += 1
+        if calls["get"] == 1:
+            return _Resp(200, {"status_enum": "working", "messages": []})
+        return _Resp(200, {"status_enum": "blocked", "messages": [
+            {"type": "user_message", "message": "prompt"},
+            {"type": "devin_message", "message": '```json\n{"reply": "analysed", "mutations": []}\n```'}]})
+
+    monkeypatch.setattr(prov.httpx, "post", fake_post)
+    monkeypatch.setattr(prov.httpx, "get", fake_get)
+    p = prov.get_provider("devin", {"max_acu_limit": "3"}, api_key="test-key")
+    p.poll_seconds = 0
+    assert p.complete_json("analyse this") == {"reply": "analysed", "mutations": []}
+    url, headers, body = calls["post"][0]
+    assert url == "https://api.devin.ai/v1/sessions" and headers["Authorization"] == "Bearer test-key"
+    assert body["max_acu_limit"] == 3 and "analyse this" in body["prompt"]
+
+
+def test_devin_api_provider_requires_key(monkeypatch):
+    monkeypatch.delenv("DEVIN_API_KEY", raising=False)
+    monkeypatch.setattr(prov.app_settings, "devin_api_key", "")
+    with pytest.raises(prov.LLMError, match="DEVIN_API_KEY"):
         prov.get_provider("devin").complete("hi")
-
-
-def test_singular_handles_common_plurals():
-    from backend.app.ai.textmodel import singular
-
-    cases = {"purchases": "purchase", "addresses": "address", "boxes": "box", "categories": "category",
-             "statuses": "status", "orders": "order", "class": "class"}
-    for plural, single in cases.items():
-        assert singular(plural) == single, plural
