@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Sliders,
   Key,
@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Loader2,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react';
 import {
   synthesizeViewSqlLocal,
@@ -84,6 +86,10 @@ export const RightInspector: React.FC = () => {
   const selectedColumnId = useModelStore((s) => s.selectedColumnId);
   const selectedRelationshipId = useModelStore((s) => s.selectedRelationshipId);
   const targetDialect = useModelStore((s) => s.targetDialect);
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (selectedEntityId || selectedRelationshipId) setCollapsed(false);
+  }, [selectedEntityId, selectedRelationshipId]);
   const currentUser = useModelStore((s) => s.currentUser);
 
   const updateEntity = useModelStore((s) => s.updateEntity);
@@ -212,13 +218,37 @@ export const RightInspector: React.FC = () => {
   const contract = selectedEntity?.data_contract || DEFAULT_CONTRACT;
   const volumetrics = selectedEntity?.volumetrics || DEFAULT_VOLUMETRICS;
 
+  if (collapsed) {
+    return (
+      <aside className="w-9 bg-slate-900 border-l border-slate-800 flex flex-col items-center py-2 shrink-0 z-10">
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          title="Show properties"
+          className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-slate-800"
+        >
+          <PanelRightOpen className="w-4 h-4" />
+        </button>
+        <span className="mt-3 text-[10px] uppercase tracking-wider text-slate-500 [writing-mode:vertical-rl]">Properties</span>
+      </aside>
+    );
+  }
+
   return (
     <aside className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-10 overflow-y-auto">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
           <Sliders className="w-3.5 h-3.5 text-blue-400" />
-          Property Inspector
+          Properties
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Hide properties"
+            className="ml-1 p-0.5 rounded text-slate-500 hover:text-white hover:bg-slate-800"
+          >
+            <PanelRightClose className="w-3.5 h-3.5" />
+          </button>
         </span>
         {isPhysicalLocked && (
           <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-semibold flex items-center gap-1">
