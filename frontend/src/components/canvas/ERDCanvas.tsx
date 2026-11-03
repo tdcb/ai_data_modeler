@@ -80,8 +80,6 @@ export const ERDCanvas: React.FC = () => {
   const deleteColumn = useModelStore((s) => s.deleteColumn);
   const deleteEntity = useModelStore((s) => s.deleteEntity);
   const deleteRelationship = useModelStore((s) => s.deleteRelationship);
-  const undo = useModelStore((s) => s.undo);
-  const redo = useModelStore((s) => s.redo);
 
   // Filter entities by active Subject Area
   const visibleEntities = useMemo(() => {
@@ -248,23 +246,8 @@ export const ERDCanvas: React.FC = () => {
           target.tagName === 'SELECT' ||
           target.isContentEditable);
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
-        if (isInputFocused) return;
-        e.preventDefault();
-        if (e.shiftKey) {
-          redo();
-        } else {
-          undo();
-        }
-        return;
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
-        if (isInputFocused) return;
-        e.preventDefault();
-        redo();
-        return;
-      }
+      // Undo/redo is handled app-wide in App.tsx so it works in every view.
+      if (e.metaKey || e.ctrlKey) return;
 
       if (isInputFocused) return;
 
@@ -288,8 +271,6 @@ export const ERDCanvas: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
-    undo,
-    redo,
     selectedEntityId,
     selectedColumnId,
     selectedRelationshipId,

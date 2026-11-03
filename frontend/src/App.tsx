@@ -71,6 +71,26 @@ export const App: React.FC = () => {
     loadInitialProject();
   }, [loadInitialProject]);
 
+  // App-wide model undo/redo shared by Canvas, Dictionary, Editor and AI Companion. Free-text fields keep their
+  // native undo, except Dictionary cells, which edit the shared model directly.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key !== 'z' && key !== 'y') return;
+      const t = e.target as HTMLElement | null;
+      const inField = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (inField && !t?.closest('[data-testid="data-dictionary"]')) return;
+      if (t?.closest('[data-testid="data-dictionary"] input[placeholder^="Filter"]')) return;
+      e.preventDefault();
+      const st = useModelStore.getState();
+      if (key === 'y' || e.shiftKey) st.redo();
+      else st.undo();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   useEffect(() => {
     if (!statusBanner) return;
     const timer = setTimeout(() => {
