@@ -5417,8 +5417,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-31b1e7cd": {
       "id": "rel-31b1e7cd",
@@ -5430,8 +5429,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-f1851645": {
       "id": "rel-f1851645",
@@ -5443,8 +5441,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-0590c76b": {
       "id": "rel-0590c76b",
@@ -5456,8 +5453,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-7ffefad6": {
       "id": "rel-7ffefad6",
@@ -5469,8 +5465,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-a41bec6f": {
       "id": "rel-a41bec6f",
@@ -5482,8 +5477,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-fda1d314": {
       "id": "rel-fda1d314",
@@ -5495,8 +5489,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-db81bd49": {
       "id": "rel-db81bd49",
@@ -5508,8 +5501,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-2190bc2c": {
       "id": "rel-2190bc2c",
@@ -5521,8 +5513,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-lin-5867ad5e": {
       "id": "rel-lin-5867ad5e",
@@ -5534,8 +5525,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE"
     },
     "rel-lin-9b3db9ce": {
       "id": "rel-lin-9b3db9ce",
@@ -5547,8 +5537,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE"
     },
     "rel-lin-e9412125": {
       "id": "rel-lin-e9412125",
@@ -5560,8 +5549,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_CUSTOMER_LIFETIME_VALUE"
     },
     "rel-lin-61220847": {
       "id": "rel-lin-61220847",
@@ -5573,8 +5561,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_MONTHLY_REVENUE_KPIS",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_MONTHLY_REVENUE_KPIS"
     },
     "rel-lin-f4dec850": {
       "id": "rel-lin-f4dec850",
@@ -5586,8 +5573,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_MONTHLY_REVENUE_KPIS",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_MONTHLY_REVENUE_KPIS"
     },
     "rel-lin-df6d5f55": {
       "id": "rel-lin-df6d5f55",
@@ -5599,8 +5585,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_PRODUCT_CATEGORY_PERFORMANCE",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_PRODUCT_CATEGORY_PERFORMANCE"
     },
     "rel-lin-0295eba6": {
       "id": "rel-lin-0295eba6",
@@ -5612,8 +5597,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view MART_PRODUCT_CATEGORY_PERFORMANCE",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view MART_PRODUCT_CATEGORY_PERFORMANCE"
     },
     "rel-lin-35539b72": {
       "id": "rel-lin-35539b72",
@@ -5625,8 +5609,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY"
     },
     "rel-lin-e0e72b95": {
       "id": "rel-lin-e0e72b95",
@@ -5638,8 +5621,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY"
     },
     "rel-lin-d18c4c83": {
       "id": "rel-lin-d18c4c83",
@@ -5651,8 +5633,7 @@
       "cardinality": "1:N",
       "rel_type": "upstream_lineage",
       "is_mandatory": true,
-      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY",
-      "description": ""
+      "transformation_note": "Upstream source table referenced in view VW_CUSTOMER_CLAIM_SUMMARY"
     },
     "rel-d1b8df0b": {
       "id": "rel-d1b8df0b",
@@ -5664,8 +5645,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     },
     "rel-91d6c839": {
       "id": "rel-91d6c839",
@@ -5677,8 +5657,7 @@
       "cardinality": "1:N",
       "rel_type": "non_identifying",
       "is_mandatory": true,
-      "transformation_note": null,
-      "description": ""
+      "transformation_note": null
     }
   },
   "annotations": {
