@@ -155,7 +155,11 @@ export const TopToolbar: React.FC = () => {
       {/* Center Controls: View Switcher (Logical / Physical / Conceptual) + Dialect + Layout */}
       <div className="flex items-center gap-2.5">
         {/* Duality View Switcher */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800">
+        <div
+          className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800"
+          title="Model level: conceptual (business entities), logical (attributes and keys) or physical (database types and names)"
+        >
+          <span className="px-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Level</span>
           {(
             [
               { id: 'logical', label: 'Logical', icon: Eye },
@@ -244,7 +248,7 @@ export const TopToolbar: React.FC = () => {
             }`}
           >
             <Upload className="w-3.5 h-3.5 text-sky-400" />
-            <span>Import &amp; Sync</span>
+            <span>Add data</span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
@@ -553,6 +557,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <FolderGit2 className="w-3.5 h-3.5 text-sky-400" />
+          <span>Repository</span>
           <span
             className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
               workspaceMode === 'standalone'

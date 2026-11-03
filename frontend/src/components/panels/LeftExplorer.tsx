@@ -176,7 +176,7 @@ export const LeftExplorer: React.FC = () => {
           <summary className="px-3 py-2 cursor-pointer list-none flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200">
             <span className="flex items-center gap-1.5">
               <Database className="w-3.5 h-3.5 text-emerald-400" />
-              Import &amp; data sources
+              Databases &amp; files
             </span>
             <span className="text-slate-600 group-open:rotate-90 transition-transform">›</span>
           </summary>

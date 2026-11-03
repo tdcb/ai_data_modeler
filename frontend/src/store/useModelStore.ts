@@ -323,7 +323,7 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
   statusBanner: null,
 
   isCodeDrawerOpen: false,
-  isAgentSidebarOpen: true,
+  isAgentSidebarOpen: false,
   workspaceView: 'canvas',
   isCompareModalOpen: false,
   compareModalTab: 'compare',

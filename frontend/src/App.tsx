@@ -269,6 +269,12 @@ export const App: React.FC = () => {
 
           <main className="flex-1 flex flex-col min-w-0 min-h-0 relative">
             <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-800 bg-slate-900/70 shrink-0" data-testid="view-switcher">
+              <span
+                className="px-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-semibold"
+                title="Workspace view: different ways to look at and edit the same model"
+              >
+                View
+              </span>
               {VIEWS.map((v) => (
                 <button
                   key={v.id}
