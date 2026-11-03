@@ -125,7 +125,7 @@ export const AICompanion: React.FC = () => {
 
   const activeProvider = provider || providers?.active_provider || 'builtin';
   const activeInfo = providers?.providers.find((p) => p.name === activeProvider);
-  const canEdit = ['Admin', 'Architect', 'Steward'].includes(String(currentUser.role));
+  const canEdit = ['Admin', 'Data Architect', 'Data Steward'].includes(String(currentUser.role));
 
   const loadProviders = useCallback(async () => {
     try {

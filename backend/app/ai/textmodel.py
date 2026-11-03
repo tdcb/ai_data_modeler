@@ -122,7 +122,7 @@ def singular(word: str) -> str:
     w = word.lower()
     if w.endswith("ies") and len(w) > 4:
         return word[:-3] + "y"
-    if w.endswith(("ses", "xes", "ches", "shes")):
+    if w.endswith(("sses", "xes", "ches", "shes", "zzes", "uses")):
         return word[:-2]
     if w.endswith("s") and not w.endswith(("ss", "us", "is")) and len(w) > 3:
         return word[:-1]

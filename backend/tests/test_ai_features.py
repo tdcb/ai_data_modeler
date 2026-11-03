@@ -260,3 +260,12 @@ def test_devin_cli_not_logged_in_is_reported(tmp_path, monkeypatch):
     prov._DEVIN_AUTH_OK.clear()
     with pytest.raises(prov.LLMError, match="not logged in"):
         prov.get_provider("devin").complete("hi")
+
+
+def test_singular_handles_common_plurals():
+    from backend.app.ai.textmodel import singular
+
+    cases = {"purchases": "purchase", "addresses": "address", "boxes": "box", "categories": "category",
+             "statuses": "status", "orders": "order", "class": "class"}
+    for plural, single in cases.items():
+        assert singular(plural) == single, plural
