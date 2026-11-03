@@ -193,6 +193,7 @@ export interface RelationshipModel {
   rel_type: RelationshipType;
   is_mandatory?: boolean;
   transformation_note?: string | null;
+  description?: string;
 }
 
 export interface StickyNoteModel {
@@ -245,6 +246,7 @@ export interface CompileResponse {
   snowflake_ddl: string;
   sql_server_ddl: string;
   oracle_ddl: string;
+  sqlite_ddl?: string;
   dbt_files: Record<string, string>;
   datacontract_yaml?: string;
 }

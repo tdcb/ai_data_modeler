@@ -1,4 +1,47 @@
-# MetaForge Studio
+# AI Data Modeler
+
+> **AI-native data modeling for SQL Server, SQLite, Snowflake and dbt — built on MetaForge Studio**
+
+AI Data Modeler extends MetaForge Studio with an Archibase-style, AI-first workflow: four synchronized interfaces
+(Canvas, AI Companion, Dictionary, Editor), model generation from unstructured context, natural-language schema search,
+AI documentation and a privacy-first, metadata-only boundary. Pick the LLM per request: **Kiro CLI**, **Gemini CLI**,
+**Devin CLI**, the Google Gemini API, any OpenAI-compatible API, or the built-in offline engine.
+
+## AI-native features
+
+| Feature | Where | How it works |
+|---|---|---|
+| **Four synced interfaces** | View switcher above the canvas: *Canvas*, *Dictionary*, *Editor*, *Canvas + Editor*; *AI Companion* side panel | All four read and write the same Zustand canonical model, so an edit in one shows up in the others straight away (undo/redo works across all of them). |
+| **Canvas** | `ERDCanvas`, `TableNode` | Add/rename/drop tables and columns inline, toggle PK/FK/nullability, change data types, drag to connect FKs. Dictionary/search results zoom the canvas to the matching entity. |
+| **Editor** | `components/editor/ModelEditor.tsx`, `backend/app/ai/editor_dsl.py` | A DBML-style text view (`Table`, columns with `[pk, not null, unique, pii:, note:]`, `Ref a.x < b.y [1:N]`). Live sync applies edits while you type (or Ctrl/Cmd+S). Tables and columns are matched by name, so ids, positions and all other properties are kept. Errors are shown with line numbers. |
+| **Dictionary** | `components/dictionary/DataDictionary.tsx` | Every table, column, relationship and glossary term with inline-editable names, types, keys, PII labels and definitions, documentation coverage, plus an AI *Explain* for each object. |
+| **AI Companion** | `components/ai/AICompanion.tsx` | Tabs: **Chat** (ask questions or ask for model changes; changes are applied to the shared model), **Generate**, **Search**, **Document**, **Context**, **Privacy**. |
+| **Generate from unstructured context** | `/api/ai/generate`, `ai/generator.py`, `ai/textmodel.py` | Notes, transcripts (.vtt/.srt), briefs, requirements, .docx/.pdf, SQL DDL, DBML, Mermaid `erDiagram`, markdown tables and diagram images (sent to multimodal providers). You review a preview of new and extended tables before merging. Works offline with a built-in extractor. |
+| **Natural-language search** | `/api/ai/search`, `ai/search.py` | Matches on synonyms, glossary abbreviations and structure ("PII columns", "date columns in claims", "tables without description", "foreign keys to customer"). It can optionally send the question to the LLM. |
+| **AI documentation** | `/api/ai/document`, `/api/ai/explain`, `ai/documenter.py` | Drafts definitions for tables, columns and relationships. You review and edit each one before applying, and applied ones are marked `AUTO_GENERATED`. |
+| **Context library** | `/api/ai/context*`, `ai/context_library.py` | Project documents the AI uses as background. Stored under `workspace_model/context_library/` (gitignored). |
+| **Privacy-first metadata** | `ai/privacy.py`, *Privacy* tab | Metadata-only mode is **on by default**. Reverse engineering reads only structure (no `COUNT(*)`), live profiling is turned off, file imports drop sample values, and AI prompts are built only from `ai_catalog()`: names, types, keys, constraints, indexes, views and descriptions. Row data, samples, min/max and credentials are never sent. Every external AI call is logged to `workspace_model/ai_audit.jsonl` (size and feature only). Only admins can turn the mode off. |
+| **SQLite DDL** | `compilers/sqlite.py`, *DDL & dbt* drawer | Joins the existing Snowflake / SQL Server / Oracle / dbt / data-contract outputs. |
+
+### LLM providers
+
+| Provider | Type | Default command / settings |
+|---|---|---|
+| Built-in (offline) | deterministic | no LLM; nothing leaves the machine |
+| **Kiro CLI** | headless CLI | `kiro-cli chat --no-interactive` (+ `--model`) |
+| **Gemini CLI** | headless CLI | `gemini -p …` (prompt streamed on stdin, `-m` model) |
+| **Devin CLI** | headless CLI | `devin --respect-workspace-trust=false -p --prompt-file …`; checks `devin auth status` |
+| Google Gemini API | HTTPS | per-user key (Profile → AI API Keys) or `GEMINI_API_KEY` |
+| OpenAI-compatible | HTTPS | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` |
+
+CLI providers run on the machine that hosts the backend and use that machine's existing CLI login, so no API key
+is needed. Choose a provider in the AI Companion header. The gear icon lets you edit the command/model/timeout,
+**Test** the provider, and **Save as default** (saved to `workspace_model/ai_settings.json`, gitignored). If a
+provider fails or isn't installed, the request falls back to the built-in engine and shows a warning.
+
+---
+
+# MetaForge Studio foundation
 
 > **Enterprise Cloud-Native Canonical Data Modeling, Governance Control Plane & Remote Collaboration Repository**
 
@@ -116,7 +159,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Install backend dependencies
-pip install fastapi uvicorn sqlalchemy pydantic pyjwt bcrypt httpx openpyxl pandas sqlglot pytest
+pip install -r backend/requirements.txt pytest   # optional: pypdf for PDF context documents
 
 # Start FastAPI backend (runs on http://127.0.0.1:8000)
 uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload

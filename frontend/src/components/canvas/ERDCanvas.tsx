@@ -5,6 +5,7 @@ import {
   Controls,
   MiniMap,
   BackgroundVariant,
+  useReactFlow,
   type Node,
   type Edge,
   type OnConnect,
@@ -212,6 +213,20 @@ export const ERDCanvas: React.FC = () => {
       console.error('ELK auto-layout error:', err);
     }
   }, [visibleEntities, edges, applyLayoutPositions]);
+
+  // Center the canvas on an entity picked in the Dictionary, Search or AI Companion
+  const { setCenter } = useReactFlow();
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const id = (ev as CustomEvent<{ entityId: string }>).detail?.entityId;
+      const ent = id ? useModelStore.getState().project.entities[id] : undefined;
+      if (!ent) return;
+      const pos = ent.position || { x: 0, y: 0 };
+      setCenter(pos.x + 160, pos.y + 40 + ent.columns.length * 12, { zoom: 1.05, duration: 600 });
+    };
+    window.addEventListener('metaforge:focus-entity', handler);
+    return () => window.removeEventListener('metaforge:focus-entity', handler);
+  }, [setCenter]);
 
   // Listen to custom 'metaforge:auto-layout' event from TopToolbar
   useEffect(() => {

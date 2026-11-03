@@ -467,6 +467,12 @@ def parse_excel_bytes(file_bytes: bytes, filename: str) -> FileInspectionSummary
 # ---------------------------------------------------------------------------
 # Metamodel Conversion & Import Logic
 # ---------------------------------------------------------------------------
+def _metadata_only() -> bool:
+    from ..ai.settings_store import metadata_only
+
+    return metadata_only()
+
+
 def convert_sheet_to_entity(
     sheet: SheetInspectionResult,
     subject_area: str = "Staging",
@@ -520,7 +526,7 @@ def convert_sheet_to_entity(
         else:
             desc_parts.append(f"Optional field (observed null rate: {col.null_pct}%).")
 
-        if col.sample_values and col.distinct_count <= 8:
+        if col.sample_values and col.distinct_count <= 8 and not _metadata_only():
             samples_str = ", ".join(f"'{s}'" for s in col.sample_values[:4])
             desc_parts.append(f"Categorical domain observed with values: [{samples_str}].")
         elif col.min_value and col.max_value and col.inferred_type in ("DATE", "INTEGER", "DECIMAL(18,4)"):
@@ -532,7 +538,7 @@ def convert_sheet_to_entity(
             uniqueness_pct=col.uniqueness_pct,
             min_value=col.min_value,
             max_value=col.max_value,
-            sample_values=col.sample_values,
+            sample_values=[] if _metadata_only() else col.sample_values,
             detected_pattern=f"FILE_IMPORTED({col.inferred_type})",
             recommended_tests=["not_null"] if col.null_pct == 0.0 else [],
             last_profiled_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

@@ -149,6 +149,8 @@ export function synthesizeViewSqlLocal(
   return lines.join('\n');
 }
 
+export type WorkspaceView = 'canvas' | 'dictionary' | 'editor' | 'split';
+
 interface ModelStoreState {
   project: ProjectMetamodel;
   pastProjects: ProjectMetamodel[];
@@ -175,6 +177,7 @@ interface ModelStoreState {
   // UI Drawer / Modal toggles
   isCodeDrawerOpen: boolean;
   isAgentSidebarOpen: boolean;
+  workspaceView: WorkspaceView;
   isCompareModalOpen: boolean;
   compareModalTab: 'compare' | 'reverse';
   isLoginModalOpen: boolean;
@@ -260,6 +263,8 @@ interface ModelStoreState {
   logout: () => void;
   setCodeDrawerOpen: (open: boolean) => void;
   setAgentSidebarOpen: (open: boolean) => void;
+  setWorkspaceView: (view: WorkspaceView) => void;
+  focusEntity: (entityId: string, columnId?: string | null) => void;
   openCompareModal: (tab?: 'compare' | 'reverse') => void;
   closeCompareModal: () => void;
   setLoginModalOpen: (open: boolean) => void;
@@ -319,6 +324,7 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
 
   isCodeDrawerOpen: false,
   isAgentSidebarOpen: true,
+  workspaceView: 'canvas',
   isCompareModalOpen: false,
   compareModalTab: 'compare',
   isLoginModalOpen: false,
@@ -1495,6 +1501,19 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
     }
   },
   setAgentSidebarOpen: (isAgentSidebarOpen) => set({ isAgentSidebarOpen }),
+  setWorkspaceView: (workspaceView) => set({ workspaceView }),
+  focusEntity: (entityId, columnId = null) => {
+    const ent = get().project.entities[entityId];
+    if (!ent) return;
+    const sa = get().activeSubjectArea;
+    if (sa !== 'All' && ent.subject_area.toLowerCase() !== sa.toLowerCase()) {
+      set({ activeSubjectArea: 'All' });
+    }
+    get().selectEntity(entityId, columnId);
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('metaforge:focus-entity', { detail: { entityId } }));
+    }, 50);
+  },
   openCompareModal: (tab = 'compare') =>
     set({ isCompareModalOpen: true, compareModalTab: tab }),
   closeCompareModal: () => set({ isCompareModalOpen: false }),

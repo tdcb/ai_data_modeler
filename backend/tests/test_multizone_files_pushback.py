@@ -96,7 +96,7 @@ def test_multizone_reverse_engineering_and_routing():
     assert dim_p["header_color"] == "#2563eb"
 
 
-def test_live_sql_profiling_and_definition_generation():
+def test_live_sql_profiling_and_definition_generation(profiling_allowed):
     """Verify live SQL profiling updates column profiles and generates definitions based on metrics and names."""
     headers = _login()
     conn_id = _demo_conn_id(headers)

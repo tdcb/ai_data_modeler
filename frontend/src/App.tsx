@@ -6,7 +6,10 @@ import { RightInspector } from './components/panels/RightInspector';
 import { CodeDrawer } from './components/panels/CodeDrawer';
 import { CompareModal } from './components/panels/CompareModal';
 import { ConnectionsModal } from './components/panels/ConnectionsModal';
-import { AgentSidebar } from './components/agent/AgentSidebar';
+import { AICompanion } from './components/ai/AICompanion';
+import { DataDictionary } from './components/dictionary/DataDictionary';
+import { ModelEditor } from './components/editor/ModelEditor';
+import type { WorkspaceView } from './store/useModelStore';
 import { LoginModal } from './components/auth/LoginModal';
 import { ApiKeySettingsModal } from './components/modals/ApiKeySettingsModal';
 import { McpIntegrationModal } from './components/modals/McpIntegrationModal';
@@ -24,7 +27,18 @@ import {
   GitMerge,
   ShieldAlert,
   FolderGit2,
+  Network,
+  BookOpen,
+  FileCode2,
+  Columns2,
 } from 'lucide-react';
+
+const VIEWS: { id: WorkspaceView; label: string; icon: React.ElementType }[] = [
+  { id: 'canvas', label: 'Canvas', icon: Network },
+  { id: 'dictionary', label: 'Dictionary', icon: BookOpen },
+  { id: 'editor', label: 'Editor', icon: FileCode2 },
+  { id: 'split', label: 'Canvas + Editor', icon: Columns2 },
+];
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export const App: React.FC = () => {
@@ -50,6 +64,8 @@ export const App: React.FC = () => {
     (s) => s.disconnectFromRemoteRepository
   );
   const setRemoteRepoModalOpen = useModelStore((s) => s.setRemoteRepoModalOpen);
+  const workspaceView = useModelStore((s) => s.workspaceView);
+  const setWorkspaceView = useModelStore((s) => s.setWorkspaceView);
 
   useEffect(() => {
     loadInitialProject();
@@ -226,19 +242,58 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* Main Workspace Split: LeftExplorer | Center ERDCanvas + CodeDrawer | RightInspector | AgentSidebar */}
+        {/* Main Workspace Split: LeftExplorer | Canvas / Dictionary / Editor + CodeDrawer | RightInspector | AI Companion */}
         <div className="flex-1 flex min-h-0">
           <LeftExplorer />
 
           <main className="flex-1 flex flex-col min-w-0 min-h-0 relative">
-            <div className="flex-1 min-h-0">
-              <ERDCanvas />
+            <div className="flex items-center gap-1 px-2 py-1 border-b border-slate-800 bg-slate-900/70 shrink-0" data-testid="view-switcher">
+              {VIEWS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setWorkspaceView(v.id)}
+                  data-testid={`view-${v.id}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    workspaceView === v.id ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  }`}
+                >
+                  <v.icon className="w-3.5 h-3.5" />
+                  {v.label}
+                </button>
+              ))}
+              <span className="ml-auto text-[10px] text-slate-500">
+                Canvas · AI Companion · Dictionary · Editor share one live model
+              </span>
+            </div>
+            <div className="flex-1 min-h-0 flex">
+              {(workspaceView === 'canvas' || workspaceView === 'split') && (
+                <div className={`min-h-0 min-w-0 ${workspaceView === 'split' ? 'w-1/2 border-r border-slate-800' : 'flex-1'}`}>
+                  <ERDCanvas />
+                </div>
+              )}
+              {workspaceView === 'dictionary' && (
+                <div className="flex-1 min-h-0 min-w-0">
+                  <ErrorBoundary fallbackTitle="Dictionary Error">
+                    <DataDictionary />
+                  </ErrorBoundary>
+                </div>
+              )}
+              {(workspaceView === 'editor' || workspaceView === 'split') && (
+                <div className={`min-h-0 min-w-0 ${workspaceView === 'split' ? 'w-1/2' : 'flex-1'}`}>
+                  <ErrorBoundary fallbackTitle="Editor Error">
+                    <ModelEditor />
+                  </ErrorBoundary>
+                </div>
+              )}
             </div>
             <CodeDrawer />
           </main>
 
           <RightInspector />
-          <AgentSidebar />
+          <ErrorBoundary fallbackTitle="AI Companion Error">
+            <AICompanion />
+          </ErrorBoundary>
         </div>
 
         {/* Modals */}

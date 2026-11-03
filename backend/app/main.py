@@ -74,6 +74,9 @@ from .reverse_eng.file_parser import (
 from .agent.llm_service import AgentExecutionResponse, execute_agent_prompt
 from .agent.gemini_service import GEMINI_AVAILABLE_MODELS, generate_metadata_with_gemini
 from .agent.mcp_server import mcp_registry, dispatch_jsonrpc_request
+from .ai.routes import router as ai_router
+from .ai.settings_store import metadata_only
+from .compilers.sqlite import compile_sqlite_ddl
 from .db_connector import (
     execute_ddl_on_connection,
     generate_metadata_push_script,
@@ -131,6 +134,9 @@ app.add_middleware(
 )
 
 
+app.include_router(ai_router)
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
@@ -184,6 +190,7 @@ class CompileResponse(BaseModel):
     snowflake_ddl: str
     sql_server_ddl: str
     oracle_ddl: str
+    sqlite_ddl: str = ""
     dbt_files: Dict[str, str]
     datacontract_yaml: str = ""
 
@@ -606,6 +613,7 @@ def compile_project(
         snowflake_ddl=sf_ddl,
         sql_server_ddl=ss_ddl,
         oracle_ddl=ora_ddl,
+        sqlite_ddl=compile_sqlite_ddl(model, subject_area=sa),
         dbt_files=dbt_files,
         datacontract_yaml=contract_yaml,
     )
@@ -1353,6 +1361,12 @@ def live_profile_endpoint(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Runs live SQL aggregate profiling queries against physical tables in the connected database."""
+    if metadata_only():
+        raise HTTPException(
+            status_code=403,
+            detail="Metadata-only mode is on: live profiling reads row values and is disabled. "
+            "An admin can turn it off in AI Companion -> Privacy.",
+        )
     init_db_and_seed(db)
     rec = (
         db.query(DatabaseConnectionRecord)

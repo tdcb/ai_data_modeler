@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useModelStore } from '../../store/useModelStore';
 
-type DrawerTab = 'snowflake' | 'sql_server' | 'oracle' | 'dbt';
+type DrawerTab = 'snowflake' | 'sql_server' | 'oracle' | 'sqlite' | 'dbt';
 
 export const CodeDrawer: React.FC = () => {
   const isCodeDrawerOpen = useModelStore((s) => s.isCodeDrawerOpen);
@@ -45,6 +45,7 @@ export const CodeDrawer: React.FC = () => {
     if (activeTab === 'snowflake') return compiledOutput.snowflake_ddl;
     if (activeTab === 'sql_server') return compiledOutput.sql_server_ddl;
     if (activeTab === 'oracle') return compiledOutput.oracle_ddl;
+    if (activeTab === 'sqlite') return compiledOutput.sqlite_ddl || '-- Recompile to generate SQLite DDL';
     return dbtFiles[activeDbtKey] || '';
   };
 
@@ -88,6 +89,7 @@ export const CodeDrawer: React.FC = () => {
                 { id: 'snowflake', label: 'Snowflake DDL' },
                 { id: 'sql_server', label: 'SQL Server (T-SQL)' },
                 { id: 'oracle', label: 'Oracle (PL/SQL)' },
+                { id: 'sqlite', label: 'SQLite' },
                 { id: 'dbt', label: 'dbt Package (YAML & Jinja SQL)' },
               ] as { id: DrawerTab; label: string }[]
             ).map((tab) => (

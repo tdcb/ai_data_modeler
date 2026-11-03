@@ -52,7 +52,7 @@ def test_connection_crud_and_rbac(tmp_path):
     assert deleted.status_code == 200
 
 
-def test_live_reverse_engineer_profile_and_ddl(tmp_path):
+def test_live_reverse_engineer_profile_and_ddl(tmp_path, profiling_allowed):
     headers = _login()
     conn_id = _demo_conn_id(headers)
     project = client.get("/api/project", headers=headers).json()

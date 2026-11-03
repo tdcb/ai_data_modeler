@@ -539,7 +539,7 @@ export const TopToolbar: React.FC = () => {
         <button
           type="button"
           onClick={() => setAgentSidebarOpen(!isAgentSidebarOpen)}
-          title="Toggle MetaForge AI Agentic Control Plane"
+          title="Toggle the AI Companion"
           className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
             isAgentSidebarOpen
               ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white border-violet-400 shadow-md shadow-violet-500/20'
@@ -547,7 +547,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <Sparkles className="w-3.5 h-3.5 text-violet-300" />
-          <span>AI Agent</span>
+          <span>AI Companion</span>
         </button>
 
         {/* 5. MCP Server & Coding Assistants */}

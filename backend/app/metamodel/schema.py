@@ -194,6 +194,7 @@ class RelationshipModel(BaseModel):
     rel_type: RelationshipType = RelationshipType.NON_IDENTIFYING
     is_mandatory: bool = True
     transformation_note: Optional[str] = None
+    description: str = ""
 
 
 class StickyNoteModel(BaseModel):

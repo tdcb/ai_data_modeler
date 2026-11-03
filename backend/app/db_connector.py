@@ -727,6 +727,12 @@ def test_database_connection(
         }
 
 
+def _metadata_only() -> bool:
+    from .ai.settings_store import metadata_only
+
+    return metadata_only()
+
+
 def inspect_database_ddl(
     eng: Engine,
     schema_name: Optional[str] = None,
@@ -827,6 +833,8 @@ def inspect_database_ddl(
             ddl_blocks.append(
                 f"CREATE TABLE {tbl.upper()} (\n" + ",\n".join(col_lines) + "\n);"
             )
+            if _metadata_only():
+                continue
             try:
                 cnt = conn.execute(text(f'SELECT COUNT(*) FROM "{tbl}"')).scalar() or 0
                 row_counts[tbl.upper()] = int(cnt)
