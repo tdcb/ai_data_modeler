@@ -151,8 +151,6 @@ export const ConnectionsModal: React.FC = () => {
     return () => window.removeEventListener('metaforge:open-connections', handler);
   }, [loadConnections]);
 
-  if (!open) return null;
-
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -270,6 +268,8 @@ export const ConnectionsModal: React.FC = () => {
       </select>
     </div>
   );
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-6">
