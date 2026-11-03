@@ -31,6 +31,7 @@ import {
   BookOpen,
   FileCode2,
   Columns2,
+  LayoutGrid,
 } from 'lucide-react';
 
 const VIEWS: { id: WorkspaceView; label: string; icon: React.ElementType }[] = [
@@ -282,9 +283,17 @@ export const App: React.FC = () => {
                   {v.label}
                 </button>
               ))}
-              <span className="ml-auto text-[10px] text-slate-500">
-                Canvas · AI Companion · Dictionary · Editor share one live model
-              </span>
+              {(workspaceView === 'canvas' || workspaceView === 'split') && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event('metaforge:auto-layout'))}
+                  title="Tidy the diagram automatically"
+                  className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs text-slate-400 hover:text-white hover:bg-slate-800"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
+                  Auto-layout
+                </button>
+              )}
             </div>
             <div className="flex-1 min-h-0 flex">
               {(workspaceView === 'canvas' || workspaceView === 'split') && (

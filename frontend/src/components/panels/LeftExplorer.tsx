@@ -171,8 +171,16 @@ export const LeftExplorer: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Database & Data Sources Card */}
-        <div className="p-3 border-b border-slate-800 bg-slate-950/40 space-y-2">
+        {/* Live Database & Data Sources Card (collapsed by default to keep the explorer focused) */}
+        <details className="border-b border-slate-800 bg-slate-950/40 group">
+          <summary className="px-3 py-2 cursor-pointer list-none flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200">
+            <span className="flex items-center gap-1.5">
+              <Database className="w-3.5 h-3.5 text-emerald-400" />
+              Import &amp; data sources
+            </span>
+            <span className="text-slate-600 group-open:rotate-90 transition-transform">›</span>
+          </summary>
+        <div className="px-3 pb-3 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Database className="w-3.5 h-3.5 text-emerald-400" />
@@ -253,6 +261,8 @@ export const LeftExplorer: React.FC = () => {
             </div>
           </div>
         </div>
+        </details>
+
 
         {/* Quick Canvas Creation + Filter Search */}
         <div className="p-3 border-b border-slate-800 space-y-2">
@@ -406,11 +416,13 @@ export const LeftExplorer: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom Governance Standards Launchpad */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/60 space-y-1.5">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-            Enterprise Standards &amp; Governance
-          </div>
+        {/* Bottom Governance Standards Launchpad (collapsed by default) */}
+        <details className="border-t border-slate-800 bg-slate-950/60 group">
+          <summary className="px-3 py-2 cursor-pointer list-none flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-200">
+            <span>Standards &amp; governance</span>
+            <span className="text-slate-600 group-open:rotate-90 transition-transform">›</span>
+          </summary>
+        <div className="px-3 pb-3 space-y-1.5">
 
           <button
             type="button"
@@ -466,6 +478,8 @@ export const LeftExplorer: React.FC = () => {
             <span className="text-[10px] font-mono text-slate-400">Git/DB</span>
           </button>
         </div>
+        </details>
+
       </aside>
 
       {/* MODAL 1: Enterprise Domain Manager */}

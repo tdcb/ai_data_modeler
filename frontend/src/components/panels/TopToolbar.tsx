@@ -140,7 +140,7 @@ export const TopToolbar: React.FC = () => {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm tracking-tight text-white">
-              MetaForge Studio
+              AI Data Modeler
             </span>
             <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-slate-800 text-blue-400 border border-slate-700">
               v{project.version}
@@ -185,22 +185,19 @@ export const TopToolbar: React.FC = () => {
 
         {/* Target Physical Dialect Selector */}
         <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-          <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
-            Dialect:
-          </span>
           <select
             value={targetDialect}
             onChange={(e) => setTargetDialect(e.target.value as TargetDialect)}
             className="bg-transparent text-xs font-semibold text-sky-400 outline-none cursor-pointer"
           >
             <option value="snowflake" className="bg-slate-900 text-slate-100">
-              Snowflake Data Cloud
+              Snowflake
             </option>
             <option value="sql_server" className="bg-slate-900 text-slate-100">
-              Microsoft SQL Server (T-SQL)
+              SQL Server
             </option>
             <option value="oracle" className="bg-slate-900 text-slate-100">
-              Oracle Database (PL/SQL)
+              Oracle
             </option>
           </select>
         </div>
@@ -224,16 +221,6 @@ export const TopToolbar: React.FC = () => {
             className="p-1.5 rounded text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none"
           >
             <Redo2 className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-4 bg-slate-800 mx-0.5" />
-          <button
-            type="button"
-            onClick={triggerAutoLayout}
-            title="Auto-Arrange Diagram using Layered Orthogonal Engine"
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white"
-          >
-            <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Auto-Layout</span>
           </button>
         </div>
       </div>
@@ -532,7 +519,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <Code2 className="w-3.5 h-3.5" />
-          <span>DDL &amp; dbt</span>
+          <span>Code</span>
         </button>
 
         {/* 4. AI Agent Toggle */}
@@ -547,18 +534,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <Sparkles className="w-3.5 h-3.5 text-violet-300" />
-          <span>AI Companion</span>
-        </button>
-
-        {/* 5. MCP Server & Coding Assistants */}
-        <button
-          type="button"
-          onClick={() => setMcpModalOpen(true)}
-          title="Connect External Coding Assistants via Model Context Protocol (Claude Code, Cursor, Kiro, Gemini)"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-700/50 transition-colors shadow-sm"
-        >
-          <Terminal className="w-3.5 h-3.5 text-indigo-400" />
-          <span>MCP</span>
+          <span>AI</span>
         </button>
 
         {/* 6. Shared Remote Model Repository & Check-In / Check-Out */}
@@ -577,7 +553,6 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <FolderGit2 className="w-3.5 h-3.5 text-sky-400" />
-          <span>Remote Repo</span>
           <span
             className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
               workspaceMode === 'standalone'
