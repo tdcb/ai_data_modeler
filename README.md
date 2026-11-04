@@ -30,9 +30,9 @@ AI documentation and a privacy-first, metadata-only boundary. Pick the LLM per r
 | Built-in (offline) | deterministic | no LLM; nothing leaves the machine |
 | **Kiro CLI** | headless CLI | `kiro-cli chat --no-interactive` (+ `--model`) |
 | **Gemini CLI** | headless CLI | `gemini -p …` (prompt streamed on stdin, `-m` model) |
-| **Devin** | Devin cloud API | starts a Devin session (`POST /v1/sessions`) that analyses the request against the model metadata and replies with the answer / proposed model changes; key from `DEVIN_API_KEY` (`.env` or `config.local.json` `devin_api_key`); optional `max_acu_limit` per request |
+| **Devin** | Devin cloud API | starts a Devin session (`POST /v1/sessions`) that analyses the request against the model metadata and replies with the answer / proposed model changes; API key, API base URL, max ACUs and timeout are all set in the AI panel's provider settings (gear icon; the key is stored server-side in `workspace_model/ai_secrets.json` and shown masked). `DEVIN_API_KEY` in the environment still works as a fallback |
 | Google Gemini API | HTTPS | per-user key (Profile → AI API Keys) or `GEMINI_API_KEY` |
-| OpenAI-compatible | HTTPS | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` |
+| OpenAI-compatible | HTTPS | base URL, model and API key set in the AI panel's provider settings (env `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` as fallback) |
 
 Kiro CLI and Gemini CLI run on the machine that hosts the backend and use that machine's existing CLI login, so no API key
 is needed. Choose a provider in the AI Companion header. The gear icon lets you edit the command/model/timeout,
