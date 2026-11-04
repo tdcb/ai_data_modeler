@@ -31,6 +31,7 @@ from ..auth.models import (
     get_db,
 )
 from ..config import settings
+from ..metamodel.glossary import sanitize_model_business_text
 from ..metamodel.schema import ProjectMetamodel
 from ..metamodel.seed import ensure_seed_workspace, save_workspace_model
 from .hub import Peer, hub
@@ -76,6 +77,13 @@ def _current(db: Session, room, model_id: str) -> Optional[Dict[str, Any]]:
         loaded = _load_project(db, model_id)
         room.current = loaded.model_dump(mode="json") if loaded else None
     return room.current
+
+
+def _normalize(model_id: str, project: ProjectMetamodel) -> ProjectMetamodel:
+    # The workspace loader sanitizes business text; apply it to live edits too so reloads never diverge.
+    if model_id == WORKSPACE:
+        sanitize_model_business_text(project)
+    return project
 
 
 def _persist(db: Session, model_id: str, project: ProjectMetamodel, editor_email: str) -> None:
@@ -252,7 +260,7 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                         base_version = int(msg.get("base_version", room.version))
                         base = theirs if base_version == room.version else (_snapshot(db, model_id, base_version) or theirs)
                         merged, conflicts = three_way_merge(base, theirs, incoming)
-                        project = ProjectMetamodel.model_validate(merged)
+                        project = _normalize(model_id, ProjectMetamodel.model_validate(merged))
                         _persist(db, model_id, project, user.email)
                     except HTTPException as e:
                         await ws.send_json({"type": "error", "message": e.detail})
@@ -416,6 +424,7 @@ async def restore(model_id: str, activity_id: int, user: UserProfile = Depends(g
     project = ProjectMetamodel.model_validate_json(rec.snapshot_json)
     room = hub.room(model_id)
     async with room.lock:
+        _normalize(model_id, project)
         _persist(db, model_id, project, user.email)
         room.current = project.model_dump(mode="json")
         room.version += 1

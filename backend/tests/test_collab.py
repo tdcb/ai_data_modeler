@@ -65,6 +65,9 @@ def test_live_edit_broadcast_presence_and_activity(c):
         merged = ack_b["project"]["entities"]
         assert merged[ids[1]]["description"] == "B also edits table 2"
         assert merged[ids[2]]["description"] == "B edits table 3"
+        # live workspace edits get the same business-text sanitizing as a reload, so clients never diverge
+        reloaded = c.get("/api/project", headers={"Authorization": f"Bearer {a}"}).json()
+        assert reloaded["entities"][ids[2]]["description"] == merged[ids[2]]["description"]
         # an edit to a different table from a stale base keeps the other user's newer change
         pa2 = json.loads(json.dumps(pa))
         pa2["entities"][ids[3]]["description"] = "A edits table 4 from stale base"
