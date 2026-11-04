@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BookOpen, ChevronDown, ChevronRight, Crosshair, Key, Link2, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import { openThreadCounts, useCollabStore } from '../../store/useCollabStore';
+import { MessageSquare } from 'lucide-react';
 import { useModelStore } from '../../store/useModelStore';
 import { aiApi } from '../../services/aiApi';
 import { Markdown } from '../common/Markdown';
@@ -35,6 +37,11 @@ export const DataDictionary: React.FC = () => {
   const authToken = useModelStore((s) => s.authToken);
 
   const [tab, setTab] = useState<Tab>('tables');
+  const comments = useCollabStore((s) => s.comments);
+  const peers = useCollabStore((s) => s.peers);
+  const youId = useCollabStore((s) => s.you?.client_id);
+  const openCollab = useCollabStore((s) => s.openPanel);
+  const threadCounts = useMemo(() => openThreadCounts(comments), [comments]);
   const [filter, setFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [explainFor, setExplainFor] = useState<string | null>(null);
@@ -156,8 +163,13 @@ export const DataDictionary: React.FC = () => {
                       value={e.logical_name}
                       onChange={(ev) => updateEntity(e.id, { logical_name: ev.target.value })}
                     />
-                    <div className="px-1 text-[10px] text-slate-500">
+                    <div className="px-1 text-[10px] text-slate-500 flex items-center gap-1">
                       {e.entity_type} · {e.database_schema} · {e.subject_area}
+                      {peers
+                        .filter((p) => p.client_id !== youId && p.selection?.entity_id === e.id)
+                        .map((p) => (
+                          <span key={p.client_id} data-testid="dict-peer" title={`${p.name} is here`} className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                        ))}
                     </div>
                   </div>
                   <textarea
@@ -177,6 +189,18 @@ export const DataDictionary: React.FC = () => {
                       className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white"
                     >
                       <Crosshair className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="dict-comment"
+                      title="Comments on this table"
+                      onClick={() => openCollab('comments', { entity_id: e.id })}
+                      className={`relative p-1 rounded hover:bg-slate-800 ${threadCounts[e.id] ? 'text-amber-300' : 'text-slate-500 hover:text-white'}`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      {threadCounts[e.id] ? (
+                        <span className="absolute -top-1 -right-1 text-[8px] font-bold bg-amber-500 text-slate-950 rounded-full px-1">{threadCounts[e.id]}</span>
+                      ) : null}
                     </button>
                     <button
                       type="button"

@@ -19,6 +19,8 @@ import type {
   RelationshipType,
 } from '../../types/metamodel';
 import { useModelStore } from '../../store/useModelStore';
+import { openThreadCounts, useCollabStore } from '../../store/useCollabStore';
+import { MessageSquare } from 'lucide-react';
 
 export interface TableNodeData extends Record<string, unknown> {
   entity: EntityModel;
@@ -62,6 +64,11 @@ export const TableNode: React.FC<NodeProps> = ({ data, selected }) => {
     useState<RelationshipType>('non_identifying');
 
   const isEntitySelected = selected || selectedEntityId === entity.id;
+  const peersHere = useCollabStore((s) =>
+    s.peers.filter((p) => p.client_id !== s.you?.client_id && p.selection?.entity_id === entity.id)
+  );
+  const openThreads = useCollabStore((s) => openThreadCounts(s.comments)[entity.id] || 0);
+  const openCollab = useCollabStore((s) => s.openPanel);
   const isView =
     entity.entity_type === 'view' || entity.entity_type === 'materialized_view';
 
@@ -226,7 +233,9 @@ export const TableNode: React.FC<NodeProps> = ({ data, selected }) => {
       }}
       onDragLeave={() => setIsTableDropTarget(false)}
       onDrop={handleTableDrop}
-      className={`min-w-[320px] max-w-[380px] rounded-xl bg-slate-900/95 backdrop-blur border transition-all select-none shadow-2xl ${
+      data-peer-count={peersHere.length}
+      style={peersHere.length ? { boxShadow: peersHere.map((p, i) => `0 0 0 ${2 + i * 3}px ${p.color}`).join(', ') } : undefined}
+      className={`relative min-w-[320px] max-w-[380px] rounded-xl bg-slate-900/95 backdrop-blur border transition-all select-none shadow-2xl ${
         isTableDropTarget
           ? 'border-emerald-400 ring-2 ring-emerald-500/50'
           : isEntitySelected
@@ -234,6 +243,29 @@ export const TableNode: React.FC<NodeProps> = ({ data, selected }) => {
           : 'border-slate-700/80 hover:border-slate-500'
       }`}
     >
+      {(peersHere.length > 0 || openThreads > 0) && (
+        <div className="absolute -top-5 left-1 right-1 flex items-center gap-1 pointer-events-none">
+          {peersHere.map((p) => (
+            <span key={p.client_id} data-testid="peer-tag" className="px-1.5 py-0.5 rounded-t text-[9px] font-semibold text-white" style={{ background: p.color }}>
+              {p.name}
+            </span>
+          ))}
+          {openThreads > 0 && (
+            <button
+              type="button"
+              data-testid="comment-badge"
+              title={`${openThreads} open comment thread(s)`}
+              onClick={(e) => {
+                e.stopPropagation();
+                openCollab('comments', { entity_id: entity.id });
+              }}
+              className="ml-auto pointer-events-auto flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 text-[9px] font-bold"
+            >
+              <MessageSquare className="w-2.5 h-2.5" /> {openThreads}
+            </button>
+          )}
+        </div>
+      )}
       {/* Entity-level Left Target & Right Source Handles for quick table-to-table wiring */}
       <Handle
         type="target"

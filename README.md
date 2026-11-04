@@ -49,6 +49,18 @@ MetaForge Studio is an enterprise-grade data modeling and governance platform de
 
 ---
 
+## Real-time collaboration
+
+Everyone who opens the same model (the local workspace or a shared repository model) joins a live room over a WebSocket (`/api/collab/ws/{model_id}`).
+
+- **Live editing:** every change made in the Canvas, Dictionary, Editor or AI Companion is sent to the server, given the next model version and pushed to everyone else within a second. Changes are merged per table: edits to different tables never clash. If two people change the same table at the same moment, the later one is kept and both are told. Undo/redo only reverts your own edits.
+- **Presence:** avatars in the toolbar show who is in the model, their role and which view they are using. The table each person has selected is outlined in their colour on the Canvas and marked in the Dictionary.
+- **Comments:** threads on a table, column, relationship or the whole model, with replies, `@name` / `@email` mentions and resolve/reopen. Open threads show as badges on Canvas tables and in the Dictionary. The Comments tab lists open and resolved threads.
+- **Sharing:** the Share button lets an Owner invite people by email or create a share link, with the role Owner, Editor, Commenter or Viewer. Roles are stored in the existing per-model access list (`ADMIN` / `EDIT` / `COMMENT` / `VIEW`). Viewers cannot edit; Commenters can comment but not edit.
+- **Activity & history:** the Activity tab lists who changed, commented on or shared the model and when. Each edit keeps a snapshot (the last 200 per model), and an Editor or Owner can restore the model to any of them. A restore is itself an audited activity entry.
+
+Repository models that are checked out through the governed check-out / check-in workflow stay locked to their owner; live edits from anyone else are rejected until check-in. Collaboration traffic carries model metadata only — never row data.
+
 ## Key Capabilities
 
 - **Tri-Level Model Duality**: Seamlessly toggle between **Conceptual**, **Logical**, and **Physical** representations with automated glossary abbreviation mapping, domain cascading, and foreign key inference.

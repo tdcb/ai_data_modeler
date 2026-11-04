@@ -7,6 +7,8 @@ import { CodeDrawer } from './components/panels/CodeDrawer';
 import { CompareModal } from './components/panels/CompareModal';
 import { ConnectionsModal } from './components/panels/ConnectionsModal';
 import { AICompanion } from './components/ai/AICompanion';
+import { CollabPanel } from './components/collab/CollabPanel';
+import { useCollabConnection } from './components/collab/useCollabConnection';
 import { DataDictionary } from './components/dictionary/DataDictionary';
 import { ModelEditor } from './components/editor/ModelEditor';
 import type { WorkspaceView } from './store/useModelStore';
@@ -47,6 +49,7 @@ export const App: React.FC = () => {
   const statusBanner = useModelStore((s) => s.statusBanner);
   const setStatusBanner = useModelStore((s) => s.setStatusBanner);
   const activeRemoteModel = useModelStore((s) => s.activeRemoteModel);
+  useCollabConnection();
   const remoteWorkMode = useModelStore((s) => s.remoteWorkMode);
   const currentUser = useModelStore((s) => s.currentUser);
   const checkoutActiveRemoteModel = useModelStore(
@@ -328,6 +331,9 @@ export const App: React.FC = () => {
           <RightInspector />
           <ErrorBoundary fallbackTitle="AI Companion Error">
             <AICompanion />
+          </ErrorBoundary>
+          <ErrorBoundary fallbackTitle="Collaboration Panel Error">
+            <CollabPanel />
           </ErrorBoundary>
         </div>
 

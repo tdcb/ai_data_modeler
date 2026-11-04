@@ -25,6 +25,7 @@ import {
   FolderGit2,
   Lock,
 } from 'lucide-react';
+import { PresenceBar } from '../collab/PresenceBar';
 import { useModelStore } from '../../store/useModelStore';
 import type { TargetDialect, ViewMode } from '../../types/metamodel';
 import { exportCanvasDiagram } from '../../utils/canvasExport';
@@ -525,6 +526,8 @@ export const TopToolbar: React.FC = () => {
           <Code2 className="w-3.5 h-3.5" />
           <span>Code</span>
         </button>
+
+        <PresenceBar />
 
         {/* 4. AI Agent Toggle */}
         <button

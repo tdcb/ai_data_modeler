@@ -1,0 +1,124 @@
+"""Collaboration: live editing over WebSocket, presence, comments, sharing/roles, activity and restore."""
+import pytest
+from fastapi.testclient import TestClient
+
+from backend.app.main import app
+
+
+def _login(c, email):
+    r = c.post("/api/auth/login", json={"email": email, "password": "password123"})
+    if r.status_code != 200:
+        pytest.skip(f"seed login unavailable for {email}")
+    return r.json()["access_token"]
+
+
+@pytest.fixture()
+def c():
+    with TestClient(app) as client:
+        yield client
+
+
+def _project(c, tok):
+    return c.get("/api/project", headers={"Authorization": f"Bearer {tok}"}).json()
+
+
+def test_live_edit_broadcast_presence_and_activity(c):
+    a, v = _login(c, "architect@metaforge.local"), _login(c, "steward@metaforge.local")
+    with c.websocket_connect(f"/api/collab/ws/workspace?token={a}") as wa, \
+            c.websocket_connect(f"/api/collab/ws/workspace?token={v}") as wb:
+        wel_a = wa.receive_json()
+        assert wel_a["type"] == "welcome"
+        assert wa.receive_json()["type"] == "peer_joined"
+        wel_b = wb.receive_json()
+        assert {p["email"] for p in wel_b["peers"]} == {"architect@metaforge.local", "steward@metaforge.local"}
+        wa.send_json({"type": "presence", "selection": {"entity_id": "x"}, "view": "dictionary"})
+        pres = wb.receive_json()
+        assert pres["type"] == "presence" and pres["peer"]["selection"] == {"entity_id": "x"}
+        proj = _project(c, a)
+        first = next(iter(proj["entities"].values()))
+        first["description"] = "Edited live by architect"
+        wa.send_json({"type": "set_project", "project": proj, "base_version": wel_a["version"]})
+        ack = wa.receive_json()
+        assert ack["type"] == "ack" and ack["version"] == wel_a["version"] + 1
+        got = wb.receive_json()
+        assert got["type"] == "project" and got["version"] == ack["version"]
+        assert got["project"]["entities"][first["id"]]["description"] == "Edited live by architect"
+        assert first["physical_name"] in got["summary"]
+        # stale base version is accepted but flagged
+        wb.send_json({"type": "set_project", "project": got["project"], "base_version": wel_a["version"]})
+        assert wb.receive_json()["merged_over_newer"] is True
+        wa.receive_json()
+    feed = c.get("/api/collab/workspace/activity", headers={"Authorization": f"Bearer {a}"}).json()
+    assert feed[0]["kind"] == "edit" and feed[0]["restorable"]
+
+
+def test_viewer_is_read_only_and_restore(c):
+    a, viewer = _login(c, "architect@metaforge.local"), _login(c, "viewer@metaforge.local")
+    ha = {"Authorization": f"Bearer {a}"}
+    original = _project(c, a)
+    with c.websocket_connect(f"/api/collab/ws/workspace?token={a}") as wa:
+        ver = wa.receive_json()["version"]
+        wa.send_json({"type": "set_project", "project": original, "base_version": ver})
+        wa.receive_json()
+        changed = _project(c, a)
+        eid = next(iter(changed["entities"]))
+        changed["entities"][eid]["description"] = "to be undone"
+        wa.send_json({"type": "set_project", "project": changed, "base_version": ver + 1})
+        wa.receive_json()
+    with c.websocket_connect(f"/api/collab/ws/workspace?token={viewer}") as wv:
+        wv.receive_json()
+        wv.send_json({"type": "set_project", "project": original, "base_version": 0})
+        assert wv.receive_json()["type"] == "error"
+    feed = c.get("/api/collab/workspace/activity", headers=ha).json()
+    target = [e for e in feed if e["kind"] == "edit"][1]
+    hv = {"Authorization": f"Bearer {viewer}"}
+    assert c.post(f"/api/collab/workspace/restore/{target['id']}", headers=hv).status_code == 403
+    r = c.post(f"/api/collab/workspace/restore/{target['id']}", headers=ha)
+    assert r.status_code == 200
+    assert _project(c, a)["entities"][eid]["description"] == original["entities"][eid]["description"]
+    assert c.get("/api/collab/workspace/activity", headers=ha).json()[0]["kind"] == "restore"
+
+
+def test_comments_threads_mentions_resolve(c):
+    a, viewer = _login(c, "architect@metaforge.local"), _login(c, "viewer@metaforge.local")
+    ha, hv = {"Authorization": f"Bearer {a}"}, {"Authorization": f"Bearer {viewer}"}
+    eid = next(iter(_project(c, a)["entities"]))
+    assert c.post("/api/collab/workspace/comments", headers=hv, json={"body": "hi"}).status_code == 403
+    root = c.post("/api/collab/workspace/comments", headers=ha,
+                  json={"body": "Is this the grain, @steward?", "target_type": "entity", "entity_id": eid}).json()
+    assert root["mentions"] == ["steward@metaforge.local"]
+    reply = c.post("/api/collab/workspace/comments", headers=ha,
+                   json={"body": "Answering", "thread_id": root["thread_id"]}).json()
+    assert reply["parent_id"] == root["id"] and reply["entity_id"] == eid
+    thread = c.patch(f"/api/collab/comments/{root['id']}", headers=ha, json={"resolved": True}).json()
+    assert all(x["resolved"] for x in thread) and len(thread) == 2
+    listed = c.get("/api/collab/workspace/comments", headers=hv).json()
+    assert any(x["thread_id"] == root["thread_id"] for x in listed)
+
+
+def test_sharing_roles_and_invite_links(c):
+    adm, viewer = _login(c, "admin@metaforge.local"), _login(c, "viewer@metaforge.local")
+    h, hv = {"Authorization": f"Bearer {adm}"}, {"Authorization": f"Bearer {viewer}"}
+    assert c.post("/api/collab/workspace/invites", headers=hv, json={"role": "EDIT"}).status_code == 403
+    link = c.post("/api/collab/workspace/invites", headers=h, json={"role": "COMMENT"}).json()
+    assert link["link"].startswith("/?invite=") and not link["accepted"]
+    ok = c.post(f"/api/collab/invites/{link['token']}/accept", headers=hv).json()
+    assert ok["permission"] == "COMMENT"
+    assert c.post("/api/collab/workspace/comments", headers=hv, json={"body": "now I can comment"}).status_code == 200
+    direct = c.post("/api/collab/workspace/invites", headers=h,
+                    json={"email": "viewer@metaforge.local", "role": "EDIT"}).json()
+    assert direct["accepted"]
+    m = c.get("/api/collab/workspace/members", headers=hv).json()
+    assert m["my_permission"] == "EDIT" and m["invites"] == []
+    assert c.get("/api/collab/workspace/members", headers=h).json()["invites"]
+    c.put("/api/collab/workspace/members/viewer@metaforge.local", headers=h, json={"role": "VIEW"})
+    assert c.get("/api/collab/workspace/members", headers=hv).json()["my_permission"] == "VIEW"
+    c.delete(f"/api/collab/invites/{link['token']}", headers=h)
+    assert c.post(f"/api/collab/invites/{link['token']}/accept", headers=hv).status_code == 404
+
+
+def test_ws_rejects_bad_token(c):
+    from starlette.websockets import WebSocketDisconnect
+    with pytest.raises(WebSocketDisconnect):
+        with c.websocket_connect("/api/collab/ws/workspace?token=bogus") as w:
+            w.receive_json()

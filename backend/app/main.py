@@ -75,6 +75,7 @@ from .agent.llm_service import AgentExecutionResponse, execute_agent_prompt
 from .agent.gemini_service import GEMINI_AVAILABLE_MODELS, generate_metadata_with_gemini
 from .agent.mcp_server import mcp_registry, dispatch_jsonrpc_request
 from .ai.routes import router as ai_router
+from .collab.routes import router as collab_router
 from .ai.settings_store import metadata_only
 from .compilers.sqlite import compile_sqlite_ddl
 from .db_connector import (
@@ -135,6 +136,7 @@ app.add_middleware(
 
 
 app.include_router(ai_router)
+app.include_router(collab_router)
 
 
 @app.exception_handler(Exception)
