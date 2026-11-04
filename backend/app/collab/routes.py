@@ -75,7 +75,8 @@ def _load_project(db: Session, model_id: str) -> Optional[ProjectMetamodel]:
 def _current(db: Session, room, model_id: str) -> Optional[Dict[str, Any]]:
     if room.current is None:
         loaded = _load_project(db, model_id)
-        room.current = loaded.model_dump(mode="json") if loaded else None
+        if loaded:
+            room.remember(loaded.model_dump(mode="json"))
     return room.current
 
 
@@ -169,14 +170,6 @@ def diff_summary(old: Optional[ProjectMetamodel], new: ProjectMetamodel) -> str:
     return "; ".join(parts)[:500]
 
 
-def _snapshot(db: Session, model_id: str, version: int) -> Optional[Dict[str, Any]]:
-    rec = (db.query(CollabActivityRecord)
-           .filter(CollabActivityRecord.model_id == model_id, CollabActivityRecord.version == version,
-                   CollabActivityRecord.snapshot_json.isnot(None))
-           .order_by(CollabActivityRecord.id.desc()).first())
-    return json.loads(rec.snapshot_json) if rec else None
-
-
 def three_way_merge(base: Dict[str, Any], theirs: Dict[str, Any], mine: Dict[str, Any]):
     """Merge an edit made against `base` into the current server state `theirs`.
 
@@ -258,7 +251,7 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                         theirs = _current(db, room, model_id) or incoming
                         before = ProjectMetamodel.model_validate(theirs)
                         base_version = int(msg.get("base_version", room.version))
-                        base = theirs if base_version == room.version else (_snapshot(db, model_id, base_version) or theirs)
+                        base = room.history.get(base_version, theirs)
                         merged, conflicts = three_way_merge(base, theirs, incoming)
                         project = _normalize(model_id, ProjectMetamodel.model_validate(merged))
                         _persist(db, model_id, project, user.email)
@@ -273,7 +266,7 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                     _record(db, model_id, user.email, peer.name, "edit", summary, room.version,
                             project.model_dump_json())
                     dumped = project.model_dump(mode="json")
-                    room.current = dumped
+                    room.remember(dumped)
                     out = {"type": "project", "version": room.version, "project": dumped,
                            "author": peer.public(), "summary": summary, "conflicts": conflicts}
                     await hub.broadcast(model_id, out, exclude=peer.client_id)
@@ -426,8 +419,8 @@ async def restore(model_id: str, activity_id: int, user: UserProfile = Depends(g
     async with room.lock:
         _normalize(model_id, project)
         _persist(db, model_id, project, user.email)
-        room.current = project.model_dump(mode="json")
         room.version += 1
+        room.remember(project.model_dump(mode="json"))
         summary = f"restored version {rec.version} ({rec.actor_name}: {rec.summary[:80]})"
         _record(db, model_id, user.email, user.full_name or user.email, "restore", summary, room.version,
                 project.model_dump_json())

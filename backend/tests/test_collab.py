@@ -14,6 +14,36 @@ def _login(c, email):
     return r.json()["access_token"]
 
 
+@pytest.fixture(autouse=True)
+def _restore_collab_rows():
+    """These tests share the dev control-plane DB: undo their comments, activity, invites and role changes."""
+    from backend.app.auth.models import RemoteModelAccessRecord as Acc
+    from backend.app.auth.models import SessionLocal
+    from backend.app.collab.models import (
+        CollabActivityRecord,
+        CollabCommentRecord,
+        CollabInviteRecord,
+    )
+
+    db = SessionLocal()
+    max_ids = {m: max([r.id for r in db.query(m.id).all()] or [0]) for m in (CollabActivityRecord, CollabCommentRecord)}
+    tokens = {r.token for r in db.query(CollabInviteRecord.token).all()}
+    access = {r.id: r.permission for r in db.query(Acc).all()}
+    db.close()
+    yield
+    db = SessionLocal()
+    for m, mx in max_ids.items():
+        db.query(m).filter(m.id > mx).delete()
+    db.query(CollabInviteRecord).filter(CollabInviteRecord.token.notin_(tokens or {""})).delete(synchronize_session=False)
+    for rec in db.query(Acc).all():
+        if rec.id not in access:
+            db.delete(rec)
+        elif rec.permission != access[rec.id]:
+            rec.permission = access[rec.id]
+    db.commit()
+    db.close()
+
+
 @pytest.fixture()
 def c():
     with TestClient(app) as client:

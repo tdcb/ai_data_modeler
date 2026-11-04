@@ -33,6 +33,13 @@ class Room:
     peers: Dict[str, Peer] = field(default_factory=dict)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     current: Optional[Dict[str, Any]] = None  # authoritative project, avoids lossy reloads from disk
+    history: Dict[int, Dict[str, Any]] = field(default_factory=dict)  # recent versions, base for merges
+
+    def remember(self, project: Dict[str, Any], keep: int = 100) -> None:
+        self.current = project
+        self.history[self.version] = project
+        for v in sorted(self.history)[:-keep]:
+            del self.history[v]
 
     def next_color(self) -> str:
         used = {p.color for p in self.peers.values()}
