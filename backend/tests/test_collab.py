@@ -30,6 +30,7 @@ def test_live_edit_broadcast_presence_and_activity(c):
             c.websocket_connect(f"/api/collab/ws/workspace?token={v}") as wb:
         wel_a = wa.receive_json()
         assert wel_a["type"] == "welcome"
+        assert wel_a["project"]["entities"]
         assert wa.receive_json()["type"] == "peer_joined"
         wel_b = wb.receive_json()
         assert {p["email"] for p in wel_b["peers"]} == {"architect@metaforge.local", "steward@metaforge.local"}

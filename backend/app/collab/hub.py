@@ -32,6 +32,7 @@ class Room:
     version: int = 0
     peers: Dict[str, Peer] = field(default_factory=dict)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    current: Optional[Dict[str, Any]] = None  # authoritative project, avoids lossy reloads from disk
 
     def next_color(self) -> str:
         used = {p.color for p in self.peers.values()}

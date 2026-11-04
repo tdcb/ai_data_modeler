@@ -71,6 +71,13 @@ def _load_project(db: Session, model_id: str) -> Optional[ProjectMetamodel]:
     return ProjectMetamodel.model_validate_json(rec.model_json) if rec else None
 
 
+def _current(db: Session, room, model_id: str) -> Optional[Dict[str, Any]]:
+    if room.current is None:
+        loaded = _load_project(db, model_id)
+        room.current = loaded.model_dump(mode="json") if loaded else None
+    return room.current
+
+
 def _persist(db: Session, model_id: str, project: ProjectMetamodel, editor_email: str) -> None:
     if model_id == WORKSPACE:
         save_workspace_model(settings.canonical_model_path, project)
@@ -224,7 +231,7 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                     role=perm, color=room.next_color(), view=view)
         room.peers[peer.client_id] = peer
         await ws.send_json({"type": "welcome", "version": room.version, "you": peer.public(),
-                            "peers": hub.peers(model_id)})
+                            "peers": hub.peers(model_id), "project": _current(db, room, model_id)})
         await hub.broadcast(model_id, {"type": "peer_joined", "peer": peer.public()}, exclude=peer.client_id)
         while True:
             msg = await ws.receive_json()
@@ -240,8 +247,8 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                 async with room.lock:
                     try:
                         incoming = ProjectMetamodel.model_validate(msg.get("project") or {}).model_dump(mode="json")
-                        before = _load_project(db, model_id)
-                        theirs = before.model_dump(mode="json") if before else incoming
+                        theirs = _current(db, room, model_id) or incoming
+                        before = ProjectMetamodel.model_validate(theirs)
                         base_version = int(msg.get("base_version", room.version))
                         base = theirs if base_version == room.version else (_snapshot(db, model_id, base_version) or theirs)
                         merged, conflicts = three_way_merge(base, theirs, incoming)
@@ -258,6 +265,7 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                     _record(db, model_id, user.email, peer.name, "edit", summary, room.version,
                             project.model_dump_json())
                     dumped = project.model_dump(mode="json")
+                    room.current = dumped
                     out = {"type": "project", "version": room.version, "project": dumped,
                            "author": peer.public(), "summary": summary, "conflicts": conflicts}
                     await hub.broadcast(model_id, out, exclude=peer.client_id)
@@ -409,6 +417,7 @@ async def restore(model_id: str, activity_id: int, user: UserProfile = Depends(g
     room = hub.room(model_id)
     async with room.lock:
         _persist(db, model_id, project, user.email)
+        room.current = project.model_dump(mode="json")
         room.version += 1
         summary = f"restored version {rec.version} ({rec.actor_name}: {rec.summary[:80]})"
         _record(db, model_id, user.email, user.full_name or user.email, "restore", summary, room.version,

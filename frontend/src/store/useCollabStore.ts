@@ -169,6 +169,7 @@ let sendTimer: ReturnType<typeof setTimeout> | null = null;
 let activityTimer: ReturnType<typeof setTimeout> | null = null;
 let applyingRemote = false;
 let lastSynced: ProjectMetamodel | null = null;
+let sentQueue: ProjectMetamodel[] = [];
 let unsubscribers: Array<() => void> = [];
 
 const banner = (type: 'info' | 'success' | 'error', message: string) =>
@@ -188,6 +189,8 @@ function flushEdit() {
   if (!canEdit()) return;
   const project = useModelStore.getState().project;
   if (lastSynced && enc(project) === enc(lastSynced)) return;
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  sentQueue.push(project);
   send({ type: 'set_project', project, base_version: useCollabStore.getState().version });
 }
 
@@ -223,8 +226,9 @@ function onRemoteProject(
   const entRemote = changedKeys(base.entities, remote.entities);
   const relRemote = changedKeys(base.relationships, remote.relationships);
   // Local edits not yet acknowledged reach the server after this change, so they win there too: keep them.
-  const mineEnt = new Set(changedKeys(base.entities, ms.project.entities));
-  const mineRel = new Set(changedKeys(base.relationships, ms.project.relationships));
+  const pending = sendTimer !== null || sentQueue.length > 0;
+  const mineEnt = new Set(pending ? changedKeys(base.entities, ms.project.entities) : []);
+  const mineRel = new Set(pending ? changedKeys(base.relationships, ms.project.relationships) : []);
   const entIds = entRemote.filter((id) => !mineEnt.has(id));
   const relIds = relRemote.filter((id) => !mineRel.has(id));
   const clash = entRemote.filter((id) => mineEnt.has(id));
@@ -246,6 +250,26 @@ function onRemoteProject(
   }
 }
 
+/** Adopt the server's merged/normalized version of everything not edited locally since it was sent. */
+function adoptAck(merged: ProjectMetamodel | undefined) {
+  const sent = sentQueue.shift();
+  if (!merged) return;
+  lastSynced = merged;
+  if (!sent || sentQueue.length) return;
+  const local = useModelStore.getState().project;
+  const same = (a: unknown, b: unknown) => enc(a) === enc(b);
+  const entIds = changedKeys(local.entities, merged.entities).filter((id) => same(local.entities[id], sent.entities[id]));
+  const relIds = changedKeys(local.relationships, merged.relationships).filter((id) =>
+    same(local.relationships[id], sent.relationships[id])
+  );
+  const rest = (p: ProjectMetamodel) => ({ ...p, entities: null, relationships: null });
+  const takeRest = same(rest(local), rest(sent));
+  if (!entIds.length && !relIds.length && (!takeRest || same(rest(local), rest(merged)))) return;
+  applyingRemote = true;
+  useModelStore.setState({ project: applyRemote(local, merged, entIds, relIds, takeRest) });
+  applyingRemote = false;
+}
+
 function handle(msg: Record<string, any>) {
   const set = useCollabStore.setState;
   const st = useCollabStore.getState();
@@ -253,12 +277,14 @@ function handle(msg: Record<string, any>) {
     case 'welcome': {
       retry = 0;
       set({ status: 'live', you: msg.you, peers: msg.peers, version: msg.version, myPermission: msg.you.role });
-      lastSynced = useModelStore.getState().project;
-      if (st.modelId === 'workspace' && msg.version > 0) {
-        api
-          .getProject(useModelStore.getState().authToken)
-          .then((p) => onRemoteProject(p, { name: 'Server' }, ''))
-          .catch(() => {});
+      sentQueue = [];
+      if (msg.project) {
+        lastSynced = msg.project as ProjectMetamodel;
+        applyingRemote = true;
+        useModelStore.setState({ project: lastSynced });
+        applyingRemote = false;
+      } else {
+        lastSynced = useModelStore.getState().project;
       }
       sendPresence();
       void st.refreshComments();
@@ -282,12 +308,13 @@ function handle(msg: Record<string, any>) {
       break;
     case 'ack':
       set({ version: msg.version });
-      if (msg.project) lastSynced = msg.project as ProjectMetamodel;
+      adoptAck(msg.project as ProjectMetamodel | undefined);
       if (msg.conflicts?.length)
         banner('error', `Edit conflict on ${msg.conflicts.join(', ')}: a collaborator changed it at the same time — your later edit was kept.`);
       scheduleActivity();
       break;
     case 'error':
+      sentQueue.shift();
       banner('error', msg.message);
       if (lastSynced) {
         applyingRemote = true;
@@ -397,6 +424,7 @@ export const useCollabStore = create<CollabState>((set, get) => ({
     unsubscribers.forEach((u) => u());
     unsubscribers = [];
     lastSynced = null;
+    sentQueue = [];
     set({ status: 'offline', peers: [], you: null });
   },
 
