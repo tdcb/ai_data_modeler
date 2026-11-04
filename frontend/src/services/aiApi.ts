@@ -9,6 +9,8 @@ export interface AIProviderInfo {
   defaults: Record<string, unknown>;
   config: Record<string, unknown>;
   available: boolean;
+  secret_fields?: string[];
+  secrets?: Record<string, { set: boolean; source: '' | 'ui' | 'env'; hint: string }>;
 }
 
 export interface AIProvidersResponse {

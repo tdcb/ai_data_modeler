@@ -39,6 +39,16 @@ interface Msg {
   warnings?: string[];
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  api_key: 'API key',
+  api_base: 'API base URL',
+  base_url: 'Base URL',
+  max_acu_limit: 'Max ACUs',
+  timeout: 'Timeout (s)',
+  command: 'Command',
+  model: 'Model',
+};
+
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'chat', label: 'Chat', icon: MessageSquare },
   { id: 'generate', label: 'Generate', icon: Wand2 },
@@ -85,6 +95,7 @@ export const AICompanion: React.FC = () => {
   const [provider, setProvider] = useState<string>(() => localStorage.getItem('aidm_provider') || '');
   const [showCfg, setShowCfg] = useState(false);
   const [cfgDraft, setCfgDraft] = useState<Record<string, string>>({});
+  const [secretDraft, setSecretDraft] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -174,6 +185,7 @@ export const AICompanion: React.FC = () => {
       merged[f] = String(info.config[f] ?? info.defaults[f] ?? '');
     });
     setCfgDraft(merged);
+    setSecretDraft({});
     setTestResult('');
   }, [activeProvider, providers]);
 
@@ -182,13 +194,20 @@ export const AICompanion: React.FC = () => {
     localStorage.setItem('aidm_provider', name);
   };
 
-  const saveCfg = async (makeDefault: boolean) => {
-    const conf: Record<string, unknown> = {};
+  const saveCfg = async (makeDefault: boolean, extra: Record<string, unknown> = {}) => {
+    const conf: Record<string, unknown> = { ...extra };
     Object.entries(cfgDraft).forEach(([k, v]) => (conf[k] = k === 'timeout' ? Number(v) || undefined : v));
-    await aiApi.saveSettings(
-      { providers: { [activeProvider]: conf }, ...(makeDefault ? { active_provider: activeProvider } : {}) },
-      authToken
-    );
+    Object.entries(secretDraft).forEach(([k, v]) => v.trim() && (conf[k] = v.trim()));
+    try {
+      await aiApi.saveSettings(
+        { providers: { [activeProvider]: conf }, ...(makeDefault ? { active_provider: activeProvider } : {}) },
+        authToken
+      );
+    } catch (e) {
+      setTestResult(e instanceof Error ? e.message : String(e));
+      return;
+    }
+    setSecretDraft({});
     await loadProviders();
     setStatusBanner({ type: 'success', message: `Saved ${activeInfo?.label || activeProvider} settings` });
   };
@@ -196,7 +215,9 @@ export const AICompanion: React.FC = () => {
   const testCfg = async () => {
     setTestResult('Testing…');
     try {
-      const r = await aiApi.testProvider(activeProvider, cfgDraft, authToken);
+      const draft: Record<string, string> = { ...cfgDraft };
+      Object.entries(secretDraft).forEach(([k, v]) => v.trim() && (draft[k] = v.trim()));
+      const r = await aiApi.testProvider(activeProvider, draft, authToken);
       setTestResult(r.ok ? `OK — ${r.output.slice(0, 120)}` : `Failed — ${r.output}`);
     } catch (e) {
       setTestResult(e instanceof Error ? e.message : String(e));
@@ -335,21 +356,59 @@ export const AICompanion: React.FC = () => {
             {activeInfo.kind === 'cli'
               ? `${activeInfo.label} runs headless on the backend machine and reuses its existing login.`
               : activeInfo.name === 'devin'
-              ? 'Each request runs as a Devin cloud session that analyses it against the model metadata. Needs DEVIN_API_KEY on the backend; replies can take a few minutes.'
+              ? 'Each request runs as a Devin cloud session that analyses it against the model metadata. Replies can take a few minutes.'
+              : activeInfo.secret_fields?.length
+              ? 'Settings and API key are stored on the backend; the key is never shown again after saving.'
               : activeInfo.kind === 'api'
               ? 'API key is read from Profile → AI API Keys or the backend environment.'
               : 'Deterministic, offline engine — nothing leaves this machine.'}
             {!activeInfo.available && activeInfo.kind !== 'offline' && (
-              <span className="text-amber-300"> Not detected on the backend PATH / environment.</span>
+              <span className="text-amber-300">
+                {activeInfo.secret_fields?.length ? ' Add an API key below.' : ' Not detected on the backend PATH / environment.'}
+              </span>
             )}
           </div>
+          {activeInfo.secret_fields?.map((f) => {
+            const info = activeInfo.secrets?.[f];
+            return (
+              <label key={f} className="flex items-center gap-2">
+                <span className="w-24 text-slate-500">{FIELD_LABELS[f] || f}</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={secretDraft[f] || ''}
+                  onChange={(e) => setSecretDraft({ ...secretDraft, [f]: e.target.value })}
+                  placeholder={
+                    info?.source === 'ui'
+                      ? `Saved (${info.hint}) — type to replace`
+                      : info?.source === 'env'
+                      ? 'Using backend environment — type to override'
+                      : 'Not set'
+                  }
+                  data-testid={`provider-${f}`}
+                  className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono"
+                />
+                {info?.source === 'ui' && (
+                  <button
+                    type="button"
+                    onClick={() => saveCfg(false, { [`clear_${f}`]: true })}
+                    className="text-rose-300 hover:text-rose-200"
+                    title="Remove the saved key"
+                  >
+                    Clear
+                  </button>
+                )}
+              </label>
+            );
+          })}
           {activeInfo.fields.map((f) => (
             <label key={f} className="flex items-center gap-2">
-              <span className="w-20 text-slate-500 capitalize">{f.replace('_', ' ')}</span>
+              <span className="w-24 text-slate-500">{FIELD_LABELS[f] || f.replace('_', ' ')}</span>
               <input
                 value={cfgDraft[f] || ''}
                 onChange={(e) => setCfgDraft({ ...cfgDraft, [f]: e.target.value })}
-                className="flex-1 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono"
+                placeholder={String(activeInfo.defaults[f] ?? '') || (f === 'max_acu_limit' ? 'No limit' : '')}
+                className="flex-1 min-w-0 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 font-mono"
               />
             </label>
           ))}

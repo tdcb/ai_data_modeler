@@ -286,5 +286,44 @@ def test_devin_api_provider_creates_session_and_returns_reply(monkeypatch):
 def test_devin_api_provider_requires_key(monkeypatch):
     monkeypatch.delenv("DEVIN_API_KEY", raising=False)
     monkeypatch.setattr(prov.app_settings, "devin_api_key", "")
-    with pytest.raises(prov.LLMError, match="DEVIN_API_KEY"):
+    with pytest.raises(prov.LLMError, match="Devin API key missing"):
         prov.get_provider("devin").complete("hi")
+
+
+def test_provider_api_key_configured_from_ui(monkeypatch, isolated_ai_settings):
+    from fastapi.testclient import TestClient
+
+    from backend.app.ai import settings_store
+    from backend.app.main import app
+
+    monkeypatch.delenv("DEVIN_API_KEY", raising=False)
+    monkeypatch.setattr(prov.app_settings, "devin_api_key", "")
+    c = TestClient(app)
+
+    def login(email):
+        r = c.post("/api/auth/login", json={"email": email, "password": "password123"})
+        if r.status_code != 200:
+            pytest.skip("seed login unavailable")
+        return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    h = login("architect@metaforge.local")
+    devin = lambda: next(x for x in c.get("/api/ai/providers", headers=h).json()["providers"] if x["name"] == "devin")
+    assert devin()["secrets"]["api_key"] == {"set": False, "source": "", "hint": ""} and not devin()["available"]
+
+    key = "devin-secret-key-1234"
+    r = c.put("/api/ai/settings", headers=h, json={"providers": {"devin": {"api_key": key, "timeout": 900}}})
+    assert r.status_code == 200 and key not in r.text
+    info = devin()
+    assert info["available"] and info["secrets"]["api_key"] == {"set": True, "source": "ui", "hint": "…1234"}
+    assert info["config"]["timeout"] == 900 and key not in json.dumps(info)
+    assert key not in isolated_ai_settings.read_text()
+    assert oct(settings_store.secrets_path().stat().st_mode & 0o777) == "0o600"
+    assert prov.get_provider("devin")._key() == key
+
+    # Saving other fields keeps the stored key; viewers can't change it; clearing removes it.
+    c.put("/api/ai/settings", headers=h, json={"providers": {"devin": {"max_acu_limit": "5"}}})
+    assert devin()["secrets"]["api_key"]["set"] and devin()["config"]["timeout"] == 900
+    hv = login("viewer@metaforge.local")
+    assert c.put("/api/ai/settings", headers=hv, json={"providers": {"devin": {"api_key": "x" * 12}}}).status_code == 403
+    c.put("/api/ai/settings", headers=h, json={"providers": {"devin": {"clear_api_key": True}}})
+    assert not devin()["secrets"]["api_key"]["set"]

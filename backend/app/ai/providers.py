@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from ..config import settings as app_settings
+from .settings_store import get_secret
 
 PROVIDERS: Dict[str, Dict[str, Any]] = {
     "builtin": {"label": "Built-in (offline, no LLM)", "kind": "offline", "fields": [], "defaults": {}},
@@ -39,6 +40,7 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         "label": "Devin",
         "kind": "api",
         "fields": ["api_base", "max_acu_limit", "timeout"],
+        "secret_fields": ["api_key"],
         "defaults": {"api_base": "https://api.devin.ai/v1", "max_acu_limit": "", "timeout": 1800},
     },
     "gemini_api": {
@@ -51,6 +53,7 @@ PROVIDERS: Dict[str, Dict[str, Any]] = {
         "label": "OpenAI-compatible API",
         "kind": "api",
         "fields": ["base_url", "model", "timeout"],
+        "secret_fields": ["api_key"],
         "defaults": {"base_url": app_settings.llm_base_url, "model": app_settings.llm_model, "timeout": 120},
     },
 }
@@ -207,9 +210,9 @@ class DevinApiProvider(Provider):
     poll_seconds = 10.0
 
     def _key(self) -> str:
-        key = (self.api_key or os.getenv("DEVIN_API_KEY", "") or app_settings.devin_api_key).strip()
+        key = (self.api_key or get_secret("devin") or os.getenv("DEVIN_API_KEY", "") or app_settings.devin_api_key).strip()
         if not key:
-            raise LLMError("Devin API key missing: set DEVIN_API_KEY in .env / config.local.json on the backend.")
+            raise LLMError("Devin API key missing: add it in AI → provider settings (gear icon).")
         return key
 
     def _complete(self, prompt, system, images):
@@ -284,9 +287,9 @@ class GeminiApiProvider(Provider):
 
 class OpenAIProvider(Provider):
     def _complete(self, prompt, system, images):
-        key = (self.api_key or os.getenv("LLM_API_KEY", "") or app_settings.llm_api_key).strip()
+        key = (self.api_key or get_secret("openai") or os.getenv("LLM_API_KEY", "") or app_settings.llm_api_key).strip()
         if not key:
-            raise LLMError("LLM_API_KEY is not set for the OpenAI-compatible provider.")
+            raise LLMError("API key missing for the OpenAI-compatible provider: add it in AI → provider settings (gear icon).")
         msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": prompt}]
         base = str(self.config.get("base_url") or "https://api.openai.com/v1").rstrip("/")
         r = httpx.post(
@@ -323,7 +326,20 @@ def detect_available() -> Dict[str, bool]:
         "builtin": True,
         "kiro": bool(shutil.which("kiro-cli")),
         "gemini_cli": bool(shutil.which("gemini")),
-        "devin": bool(os.getenv("DEVIN_API_KEY") or app_settings.devin_api_key),
+        "devin": bool(secret_source("devin")),
         "gemini_api": bool(os.getenv("GEMINI_API_KEY") or app_settings.gemini_api_key),
-        "openai": bool(os.getenv("LLM_API_KEY") or app_settings.llm_api_key),
+        "openai": bool(secret_source("openai")),
     }
+
+
+_SECRET_ENV = {"devin": ("DEVIN_API_KEY", "devin_api_key"), "openai": ("LLM_API_KEY", "llm_api_key")}
+
+
+def secret_source(provider: str) -> str:
+    """Where the provider's API key comes from: 'ui' (saved in settings), 'env' (backend env/config) or ''."""
+    if get_secret(provider):
+        return "ui"
+    env, attr = _SECRET_ENV.get(provider, ("", ""))
+    if env and (os.getenv(env) or getattr(app_settings, attr, "")):
+        return "env"
+    return ""

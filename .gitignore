@@ -42,5 +42,6 @@ frontend/dist/
 
 # AI workspace state (provider settings, audit log, uploaded context documents)
 workspace_model/ai_settings.json
+workspace_model/ai_secrets.json
 workspace_model/ai_audit.jsonl
 workspace_model/context_library/

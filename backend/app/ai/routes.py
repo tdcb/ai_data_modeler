@@ -18,8 +18,15 @@ from . import documenter, editor_dsl, generator
 from . import search as search_mod
 from .companion import chat as companion_chat
 from .privacy import NEVER_SENT, ai_catalog, read_audit, record_ai_call, scrub_row_data
-from .providers import PROVIDERS, LLMError, Provider, detect_available, get_provider
-from .settings_store import load_ai_settings, save_ai_settings
+from .providers import (
+    PROVIDERS,
+    LLMError,
+    Provider,
+    detect_available,
+    get_provider,
+    secret_source,
+)
+from .settings_store import get_secret, load_ai_settings, mask, save_ai_settings
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 EDITORS = (UserRole.ADMIN, UserRole.ARCHITECT, UserRole.STEWARD)
@@ -88,8 +95,8 @@ def _provider(req: AIRequest, user: UserProfile, db: Session) -> Provider:
     name = req.provider or cfg["active_provider"]
     conf = dict(cfg["providers"].get(name) or {})
     conf.update(req.provider_config or {})
-    key = ""
-    if name == "gemini_api":
+    key = str((req.provider_config or {}).get("api_key") or "").strip()
+    if not key and name == "gemini_api":
         rec = db.query(UserRecord).filter(UserRecord.id == user.id).first()
         key = (rec.gemini_api_key if rec else "") or ""
     try:
@@ -125,16 +132,30 @@ def providers(user: UserProfile = Depends(get_current_user)) -> Dict[str, Any]:
                 "defaults": p["defaults"],
                 "config": cfg["providers"].get(n, {}),
                 "available": avail.get(n, False),
+                "secret_fields": p.get("secret_fields", []),
+                "secrets": {f: _secret_info(n, f) for f in p.get("secret_fields", [])},
             }
             for n, p in PROVIDERS.items()
         ],
     }
 
 
+def _secret_info(provider: str, field_name: str) -> Dict[str, Any]:
+    stored = get_secret(provider, field_name)
+    source = secret_source(provider)
+    return {"set": bool(source), "source": source, "hint": mask(stored) if stored else ""}
+
+
 @router.put("/settings")
 def put_settings(payload: Dict[str, Any], user: UserProfile = Depends(get_current_user)) -> Dict[str, Any]:
     if payload.get("active_provider") and payload["active_provider"] not in PROVIDERS:
         raise HTTPException(status_code=400, detail="Unknown provider")
+    touches_secret = any(
+        isinstance(c, dict) and (str(c.get("api_key") or "").strip() or c.get("clear_api_key"))
+        for c in (payload.get("providers") or {}).values()
+    )
+    if touches_secret and user.role not in (UserRole.ADMIN, UserRole.ARCHITECT):
+        raise HTTPException(status_code=403, detail="Only admins and data architects can change AI API keys.")
     if "privacy" in payload and user.role != UserRole.ADMIN and payload["privacy"].get("metadata_only") is False:
         raise HTTPException(status_code=403, detail="Only admins can disable metadata-only mode.")
     return save_ai_settings(payload)
