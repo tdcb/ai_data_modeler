@@ -53,9 +53,16 @@ def permission(db: Session, model_id: str, user: UserProfile) -> str:
                    RemoteModelAccessRecord.user_email == user.email.lower()).first())
     if rec:
         return rec.permission.upper()
+    if model_id != WORKSPACE:
+        return "NONE"
     if user.role in (UserRole.ARCHITECT, UserRole.STEWARD):
         return "EDIT"
     return "VIEW"
+
+
+def _require_admin(user: UserProfile) -> None:
+    if user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Only an Admin can grant or change access to a model")
 
 
 def _require(db: Session, model_id: str, user: UserProfile, needed: str) -> str:
@@ -448,12 +455,12 @@ def members(model_id: str, user: UserProfile = Depends(get_current_user), db: Se
     for m in out:
         m["online"] = m["email"] in online
     invites = []
-    if my == "ADMIN":
+    if user.role == UserRole.ADMIN:
         invites = [{"token": i.token, "email": i.email, "role": i.role, "accepted_by_email": i.accepted_by_email,
                     "created_at": i.created_at.isoformat() if i.created_at else None}
                    for i in db.query(CollabInviteRecord).filter(CollabInviteRecord.model_id == model_id,
                                                                CollabInviteRecord.revoked.is_(False)).all()]
-    return {"my_permission": my, "members": out, "invites": invites}
+    return {"my_permission": my, "can_manage": user.role == UserRole.ADMIN, "members": out, "invites": invites}
 
 
 def _grant(db: Session, model_id: str, email: str, role: str, by: str) -> None:
@@ -470,7 +477,7 @@ def _grant(db: Session, model_id: str, email: str, role: str, by: str) -> None:
 @router.post("/{model_id}/invites")
 async def create_invite(model_id: str, payload: InviteIn, user: UserProfile = Depends(get_current_user),
                         db: Session = Depends(get_db)):
-    _require(db, model_id, user, "ADMIN")
+    _require_admin(user)
     role = payload.role.upper()
     if role not in ("VIEW", "COMMENT", "EDIT", "ADMIN"):
         raise HTTPException(status_code=400, detail="Role must be VIEW, COMMENT, EDIT or ADMIN")
@@ -496,7 +503,7 @@ async def revoke_invite(token: str, user: UserProfile = Depends(get_current_user
     inv = db.query(CollabInviteRecord).filter(CollabInviteRecord.token == token).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invite not found")
-    _require(db, inv.model_id, user, "ADMIN")
+    _require_admin(user)
     inv.revoked = True
     db.commit()
     return {"revoked": True}
@@ -505,7 +512,7 @@ async def revoke_invite(token: str, user: UserProfile = Depends(get_current_user
 @router.put("/{model_id}/members/{email}")
 async def set_member_role(model_id: str, email: str, payload: InviteIn, user: UserProfile = Depends(get_current_user),
                           db: Session = Depends(get_db)):
-    _require(db, model_id, user, "ADMIN")
+    _require_admin(user)
     role = payload.role.upper()
     if role not in RANK:
         raise HTTPException(status_code=400, detail="Unknown role")

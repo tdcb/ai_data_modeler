@@ -336,9 +336,9 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
 
   workspaceMode: 'standalone',
   remoteRepoUrl:
-    typeof window !== 'undefined'
-      ? localStorage.getItem('metaforge_remote_repo_url') ||
-        'http://127.0.0.1:8000/api/remote-models'
+    typeof window !== 'undefined' &&
+    !['127.0.0.1', 'localhost'].includes(window.location.hostname)
+      ? `${window.location.origin}/api/remote-models`
       : 'http://127.0.0.1:8000/api/remote-models',
   remoteModels: [],
   activeRemoteModel: null,
@@ -1331,9 +1331,7 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
   autoGenerateMetadata: async (entityId) => {
     const state = get();
     const email = state.currentUser?.email || '';
-    const geminiApiKey =
-      (email ? localStorage.getItem(`metaforge_gemini_key_${email}`) : null) ||
-      localStorage.getItem('metaforge_gemini_api_key');
+    const geminiApiKey = '';
     const geminiModel =
       (email ? localStorage.getItem(`metaforge_gemini_model_${email}`) : null) ||
       localStorage.getItem('metaforge_gemini_model') ||
@@ -1534,9 +1532,6 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
   connectToRemoteRepository: async (repoUrl) => {
     try {
       const effectiveUrl = (repoUrl || get().remoteRepoUrl).trim();
-      if (typeof window !== 'undefined' && effectiveUrl) {
-        localStorage.setItem('metaforge_remote_repo_url', effectiveUrl);
-      }
       const token = get().authToken;
       const models = await api.listRemoteModels(token);
       const currentActiveId = get().activeRemoteModel?.id;

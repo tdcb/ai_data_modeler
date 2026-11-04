@@ -56,11 +56,9 @@ export const ApiKeySettingsModal: React.FC<ApiKeySettingsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    // Check localStorage first
-    const cached = localStorage.getItem(userKeyStorageId);
-    if (cached) {
-      setApiKey(cached);
-    }
+    // Keys live only on the server; purge copies older versions kept in the browser.
+    localStorage.removeItem(userKeyStorageId);
+    localStorage.removeItem('metaforge_gemini_api_key');
 
     const cachedModel = localStorage.getItem(userModelStorageId);
     if (cachedModel) {
@@ -74,10 +72,7 @@ export const ApiKeySettingsModal: React.FC<ApiKeySettingsModalProps> = ({
       .then((res) => {
         setHasServerKey(res.has_gemini_key);
         setMaskedKey(res.masked_gemini_key || null);
-        if (res.has_gemini_key && !cached) {
-          // Has key on server, set placeholder
-          setApiKey('');
-        }
+        if (res.has_gemini_key) setApiKey('');
       })
       .catch((err) => {
         console.warn('Could not fetch user API key status:', err);
@@ -90,7 +85,7 @@ export const ApiKeySettingsModal: React.FC<ApiKeySettingsModalProps> = ({
   if (!isOpen) return null;
 
   const handleTestKey = async () => {
-    const keyToTest = apiKey.trim() || localStorage.getItem(userKeyStorageId);
+    const keyToTest = apiKey.trim();
     if (!keyToTest) {
       setTestResult({
         success: false,
@@ -160,11 +155,7 @@ export const ApiKeySettingsModal: React.FC<ApiKeySettingsModalProps> = ({
       if (trimmed) {
         // Save to user database record
         const res = await api.saveUserApiKeys(trimmed, authToken);
-        // Save to user-isolated localStorage
-        localStorage.setItem(userKeyStorageId, trimmed);
         localStorage.setItem(userModelStorageId, selectedModel);
-        // Also sync global fallback for seamless compatibility
-        localStorage.setItem('metaforge_gemini_api_key', trimmed);
         localStorage.setItem('metaforge_gemini_model', selectedModel);
 
         setHasServerKey(res.has_gemini_key);

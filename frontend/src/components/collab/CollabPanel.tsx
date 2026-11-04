@@ -56,6 +56,7 @@ export const CollabPanel: React.FC = () => {
   const canComment = RANK[s.myPermission] >= RANK.COMMENT;
   const canEdit = RANK[s.myPermission] >= RANK.EDIT;
   const isOwner = s.myPermission === 'ADMIN';
+  const canManage = currentUser.role === 'Admin';
 
   const target: PeerSelection & { target_type: string } = useMemo(() => {
     const f = s.commentFocus;
@@ -267,7 +268,7 @@ export const CollabPanel: React.FC = () => {
 
       {s.panelTab === 'people' && (
         <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs" data-testid="people-tab">
-          {isOwner ? (
+          {canManage ? (
             <div className="space-y-2">
               <div className="text-[11px] font-semibold text-slate-300">Invite by email</div>
               <div className="flex gap-1">
@@ -322,7 +323,7 @@ export const CollabPanel: React.FC = () => {
             </div>
           ) : (
             <div className="text-[11px] text-slate-400 bg-slate-950/60 border border-slate-800 rounded p-2">
-              Only an Owner can invite people or change roles. You are a {ROLE_LABEL[s.myPermission]}.
+              Access to this model is managed by an Admin. You are a {ROLE_LABEL[s.myPermission]}.
             </div>
           )}
           <div>
@@ -336,7 +337,7 @@ export const CollabPanel: React.FC = () => {
                     <div className="text-slate-200 truncate">{m.name}</div>
                     <div className="text-[10px] text-slate-500 truncate">{m.email} · {m.app_role}</div>
                   </div>
-                  {isOwner && m.app_role !== 'Admin' ? (
+                  {canManage && m.app_role !== 'Admin' ? (
                     <select
                       value={m.permission}
                       onChange={(e) => run(() => s.setMemberRole(m.email, e.target.value as CollabPermission))}
@@ -351,7 +352,7 @@ export const CollabPanel: React.FC = () => {
               );
             })}
           </div>
-          {isOwner && s.invites.length > 0 && (
+          {canManage && s.invites.length > 0 && (
             <div>
               <div className="text-[11px] font-semibold text-slate-300 mb-1">Invites & links</div>
               {s.invites.map((i) => (

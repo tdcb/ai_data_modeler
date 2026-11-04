@@ -132,13 +132,13 @@ export const TopToolbar: React.FC = () => {
   const userInitial = (currentUser.full_name || currentUser.email || 'U')[0].toUpperCase();
 
   return (
-    <header className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 z-20">
+    <header className="h-14 px-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 z-20 whitespace-nowrap">
       {/* Brand + Project Name */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-3 shrink-0">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
           <Cpu className="w-4 h-4 text-white" />
         </div>
-        <div className="min-w-0">
+        <div className="hidden 2xl:block">
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm tracking-tight text-white">
               AI Data Modeler
@@ -160,7 +160,7 @@ export const TopToolbar: React.FC = () => {
           className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800"
           title="Model level: conceptual (business entities), logical (attributes and keys) or physical (database types and names)"
         >
-          <span className="px-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Level</span>
+          <span className="hidden 2xl:inline px-1.5 text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Level</span>
           {(
             [
               { id: 'logical', label: 'Logical', icon: Eye },
@@ -249,7 +249,7 @@ export const TopToolbar: React.FC = () => {
             }`}
           >
             <Upload className="w-3.5 h-3.5 text-sky-400" />
-            <span>Add data</span>
+            <span className="hidden min-[1400px]:inline">Add data</span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
@@ -370,7 +370,7 @@ export const TopToolbar: React.FC = () => {
             }`}
           >
             <Download className="w-3.5 h-3.5 text-pink-400" />
-            <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+            <span className="hidden 2xl:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
@@ -524,7 +524,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <Code2 className="w-3.5 h-3.5" />
-          <span>Code</span>
+          <span className="hidden 2xl:inline">Code</span>
         </button>
 
         <PresenceBar />
@@ -560,7 +560,7 @@ export const TopToolbar: React.FC = () => {
           }`}
         >
           <FolderGit2 className="w-3.5 h-3.5 text-sky-400" />
-          <span>Repository</span>
+          <span className="hidden 2xl:inline">Repository</span>
           <span
             className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase ${
               workspaceMode === 'standalone'
@@ -672,7 +672,7 @@ export const TopToolbar: React.FC = () => {
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-[11px] font-bold text-white shadow-sm">
               {userInitial}
             </div>
-            <div className="text-left hidden sm:block">
+            <div className="text-left hidden min-[1400px]:block">
               <div className="text-[11px] font-semibold text-slate-200 leading-tight truncate max-w-[90px]">
                 {currentUser.full_name?.split(' ')[0] || currentUser.email}
               </div>

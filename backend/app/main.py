@@ -1,5 +1,6 @@
 """MetaForge Studio FastAPI Application Entrypoint & REST API."""
 from contextlib import asynccontextmanager
+from pathlib import Path
 import json
 from typing import Any, Dict, List, Literal, Optional
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile, status
@@ -1837,4 +1838,10 @@ def update_remote_model_access_endpoint(
     )
 
 
+# Serve the built UI from the same server, so every team member opens one URL
+# and works against one central instance (models, comments, history, access).
+_UI_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if _UI_DIST.is_dir():
+    from fastapi.staticfiles import StaticFiles
 
+    app.mount("/", StaticFiles(directory=_UI_DIST, html=True), name="ui")

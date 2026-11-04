@@ -416,11 +416,7 @@ export const api = {
     };
     project: ProjectMetamodel;
   }> {
-    const effectiveKey =
-      geminiApiKey ||
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('metaforge_gemini_api_key')
-        : null);
+    const effectiveKey = geminiApiKey || null;
     const effectiveModel =
       geminiModel ||
       (typeof window !== 'undefined'
@@ -677,11 +673,7 @@ export const api = {
     message?: string;
     project: ProjectMetamodel;
   }> {
-    const effectiveKey =
-      geminiApiKey ||
-      (typeof window !== 'undefined'
-        ? localStorage.getItem('metaforge_gemini_api_key')
-        : null);
+    const effectiveKey = geminiApiKey || null;
     const effectiveModel =
       geminiModel ||
       (typeof window !== 'undefined'

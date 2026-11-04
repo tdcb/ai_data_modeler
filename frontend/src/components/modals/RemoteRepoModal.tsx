@@ -65,7 +65,7 @@ export const RemoteRepoModal: React.FC = () => {
     'directory'
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [repoUrlInput, setRepoUrlInput] = useState(remoteRepoUrl);
+  const [repoUrlInput] = useState(remoteRepoUrl);
 
   // Check-in dialog state
   const [checkinModelId, setCheckinModelId] = useState<string | null>(null);
@@ -110,9 +110,7 @@ export const RemoteRepoModal: React.FC = () => {
 
   if (!isOpen) return null;
 
-  const isAdmin =
-    currentUser.role === 'Admin' ||
-    activeRemoteModel?.user_permission === 'ADMIN';
+  const isAdmin = currentUser.role === 'Admin';
 
   const loadAcl = async (modelId: string) => {
     setIsLoading(true);
@@ -318,8 +316,8 @@ export const RemoteRepoModal: React.FC = () => {
               <input
                 type="text"
                 value={repoUrlInput}
-                onChange={(e) => setRepoUrlInput(e.target.value)}
-                placeholder="http://127.0.0.1:8000/api/remote-models"
+                readOnly
+                title="Shared models are stored centrally on this server"
                 className="w-64 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-slate-200 focus:outline-none focus:border-indigo-500"
               />
               {workspaceMode === 'standalone' ? (

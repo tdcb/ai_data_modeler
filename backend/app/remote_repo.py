@@ -194,10 +194,8 @@ def get_effective_permission(db: Session, model_id: str, user: UserProfile) -> s
     )
     if rec:
         return rec.permission.upper()
-    # Fallback default by role if not explicitly set
-    if user.role in (UserRole.ARCHITECT, UserRole.STEWARD):
-        return "EDIT"
-    return "VIEW"
+    # Shared models are visible only to members an Admin has granted access to.
+    return "NONE"
 
 
 def build_remote_model_summary(
@@ -306,7 +304,7 @@ def update_model_access_list(
     updates: List[ModelAccessEntry],
     admin_user: UserProfile,
 ) -> List[ModelAccessEntry]:
-    if admin_user.role != UserRole.ADMIN and get_effective_permission(db, model_id, admin_user) != "ADMIN":
+    if admin_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only an Admin can configure user access permissions on remote models.",

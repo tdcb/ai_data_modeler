@@ -176,6 +176,23 @@ def test_sharing_roles_and_invite_links(c):
     assert c.post(f"/api/collab/invites/{link['token']}/accept", headers=hv).status_code == 404
 
 
+
+def test_only_admin_controls_model_access(c):
+    adm, arch, stw = (_login(c, e) for e in ("admin@metaforge.local", "architect@metaforge.local",
+                                              "steward@metaforge.local"))
+    h, ha, hs = ({"Authorization": f"Bearer {t}"} for t in (adm, arch, stw))
+    assert c.put("/api/collab/workspace/members/architect@metaforge.local", headers=h,
+                 json={"role": "ADMIN"}).status_code == 200
+    m = c.get("/api/collab/workspace/members", headers=ha).json()
+    assert m["my_permission"] == "ADMIN" and m["can_manage"] is False
+    assert c.put("/api/collab/workspace/members/steward@metaforge.local", headers=ha,
+                 json={"role": "VIEW"}).status_code == 403
+    assert c.post("/api/collab/workspace/invites", headers=ha, json={"role": "EDIT"}).status_code == 403
+    assert c.get("/api/collab/workspace/members", headers=h).json()["can_manage"] is True
+    # Shared models without an explicit grant are not visible to non-admins.
+    assert c.get("/api/collab/model-not-granted/members", headers=hs).status_code == 403
+
+
 def test_ws_rejects_bad_token(c):
     from starlette.websockets import WebSocketDisconnect
     with pytest.raises(WebSocketDisconnect):
