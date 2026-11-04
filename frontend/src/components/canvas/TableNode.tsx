@@ -64,8 +64,11 @@ export const TableNode: React.FC<NodeProps> = ({ data, selected }) => {
     useState<RelationshipType>('non_identifying');
 
   const isEntitySelected = selected || selectedEntityId === entity.id;
-  const peersHere = useCollabStore((s) =>
-    s.peers.filter((p) => p.client_id !== s.you?.client_id && p.selection?.entity_id === entity.id)
+  const allPeers = useCollabStore((s) => s.peers);
+  const youId = useCollabStore((s) => s.you?.client_id);
+  const peersHere = React.useMemo(
+    () => allPeers.filter((p) => p.client_id !== youId && p.selection?.entity_id === entity.id),
+    [allPeers, youId, entity.id]
   );
   const openThreads = useCollabStore((s) => openThreadCounts(s.comments)[entity.id] || 0);
   const openCollab = useCollabStore((s) => s.openPanel);

@@ -212,13 +212,22 @@ function scheduleActivity() {
   }, 800);
 }
 
-function onRemoteProject(remote: ProjectMetamodel, author: Peer | { name: string }, summary: string) {
+function onRemoteProject(
+  remote: ProjectMetamodel,
+  author: Peer | { name: string },
+  summary: string,
+  conflicts: string[] = []
+) {
   const ms = useModelStore.getState();
   const base = lastSynced ?? ms.project;
-  const entIds = changedKeys(base.entities, remote.entities);
-  const relIds = changedKeys(base.relationships, remote.relationships);
-  const mineEnt = changedKeys(base.entities, ms.project.entities);
-  const clash = entIds.filter((id) => mineEnt.includes(id));
+  const entRemote = changedKeys(base.entities, remote.entities);
+  const relRemote = changedKeys(base.relationships, remote.relationships);
+  // Local edits not yet acknowledged reach the server after this change, so they win there too: keep them.
+  const mineEnt = new Set(changedKeys(base.entities, ms.project.entities));
+  const mineRel = new Set(changedKeys(base.relationships, ms.project.relationships));
+  const entIds = entRemote.filter((id) => !mineEnt.has(id));
+  const relIds = relRemote.filter((id) => !mineRel.has(id));
+  const clash = entRemote.filter((id) => mineEnt.has(id));
   applyingRemote = true;
   useModelStore.setState({
     project: applyRemote(ms.project, remote, entIds, relIds, true),
@@ -227,9 +236,11 @@ function onRemoteProject(remote: ProjectMetamodel, author: Peer | { name: string
   });
   applyingRemote = false;
   lastSynced = remote;
+  const nameOf = (id: string) => remote.entities[id]?.physical_name || base.entities[id]?.physical_name || id;
   if (clash.length) {
-    const names = clash.map((id) => remote.entities[id]?.physical_name || base.entities[id]?.physical_name).join(', ');
-    banner('error', `Edit conflict: ${author.name} changed ${names} at the same time — their version was kept.`);
+    banner('error', `Edit conflict: you and ${author.name} changed ${clash.map(nameOf).join(', ')} at the same time — your later edit is kept.`);
+  } else if (conflicts.length) {
+    banner('error', `Edit conflict: ${author.name} changed ${conflicts.join(', ')} at the same time — their later edit was kept.`);
   } else if (summary) {
     banner('info', `${author.name}: ${summary}`);
   }
@@ -266,13 +277,14 @@ function handle(msg: Record<string, any>) {
       break;
     case 'project':
       set({ version: msg.version });
-      onRemoteProject(msg.project as ProjectMetamodel, msg.author, msg.summary);
+      onRemoteProject(msg.project as ProjectMetamodel, msg.author, msg.summary, msg.conflicts || []);
       scheduleActivity();
       break;
     case 'ack':
       set({ version: msg.version });
-      lastSynced = useModelStore.getState().project;
-      if (msg.merged_over_newer) banner('info', 'Your edit was applied on top of a newer change from a collaborator.');
+      if (msg.project) lastSynced = msg.project as ProjectMetamodel;
+      if (msg.conflicts?.length)
+        banner('error', `Edit conflict on ${msg.conflicts.join(', ')}: a collaborator changed it at the same time — your later edit was kept.`);
       scheduleActivity();
       break;
     case 'error':

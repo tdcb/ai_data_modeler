@@ -20,6 +20,8 @@ import type {
 } from '../types/metamodel';
 import { api } from '../services/api';
 
+export const AUTH_TOKEN_KEY = 'metaforge_auth_token';
+
 const INITIAL_FALLBACK_PROJECT: ProjectMetamodel = {
   id: 'proj-loading',
   name: 'Enterprise Insurance & Claims Data Warehouse',
@@ -1467,6 +1469,7 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
   loginAsUser: async (email, password = 'password123') => {
     try {
       const res = await api.login(email, password);
+      sessionStorage.setItem(AUTH_TOKEN_KEY, res.access_token);
       set({
         isAuthenticated: true,
         authToken: res.access_token,
@@ -1487,6 +1490,7 @@ export const useModelStore = create<ModelStoreState>((set, get) => ({
   },
 
   logout: () => {
+    sessionStorage.removeItem(AUTH_TOKEN_KEY);
     set({
       isAuthenticated: false,
       authToken: null,

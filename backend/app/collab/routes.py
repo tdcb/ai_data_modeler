@@ -154,6 +154,43 @@ def diff_summary(old: Optional[ProjectMetamodel], new: ProjectMetamodel) -> str:
     return "; ".join(parts)[:500]
 
 
+def _snapshot(db: Session, model_id: str, version: int) -> Optional[Dict[str, Any]]:
+    rec = (db.query(CollabActivityRecord)
+           .filter(CollabActivityRecord.model_id == model_id, CollabActivityRecord.version == version,
+                   CollabActivityRecord.snapshot_json.isnot(None))
+           .order_by(CollabActivityRecord.id.desc()).first())
+    return json.loads(rec.snapshot_json) if rec else None
+
+
+def three_way_merge(base: Dict[str, Any], theirs: Dict[str, Any], mine: Dict[str, Any]):
+    """Merge an edit made against `base` into the current server state `theirs`.
+
+    Tables and relationships merge independently; when both sides changed the same one the incoming
+    (later) edit wins and its name is reported as a conflict.
+    """
+    out = dict(theirs)
+    conflicts: List[str] = []
+    for key in set(mine) | set(theirs):
+        if key in ("entities", "relationships"):
+            b, t, m = base.get(key) or {}, theirs.get(key) or {}, mine.get(key) or {}
+            merged: Dict[str, Any] = {}
+            for oid in set(b) | set(t) | set(m):
+                bv, tv, mv = b.get(oid), t.get(oid), m.get(oid)
+                if mv != bv:
+                    if tv != bv and tv != mv:
+                        item = mv or tv or bv or {}
+                        conflicts.append(str(item.get("physical_name") or item.get("name") or oid))
+                    val = mv
+                else:
+                    val = tv
+                if val is not None:
+                    merged[oid] = val
+            out[key] = merged
+        elif mine.get(key) != base.get(key):
+            out[key] = mine.get(key)
+    return out, conflicts
+
+
 def _ws_user(token: str) -> Optional[UserProfile]:
     try:
         payload = decode_access_token(token)
@@ -202,8 +239,13 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                     continue
                 async with room.lock:
                     try:
-                        project = ProjectMetamodel.model_validate(msg.get("project") or {})
+                        incoming = ProjectMetamodel.model_validate(msg.get("project") or {}).model_dump(mode="json")
                         before = _load_project(db, model_id)
+                        theirs = before.model_dump(mode="json") if before else incoming
+                        base_version = int(msg.get("base_version", room.version))
+                        base = theirs if base_version == room.version else (_snapshot(db, model_id, base_version) or theirs)
+                        merged, conflicts = three_way_merge(base, theirs, incoming)
+                        project = ProjectMetamodel.model_validate(merged)
                         _persist(db, model_id, project, user.email)
                     except HTTPException as e:
                         await ws.send_json({"type": "error", "message": e.detail})
@@ -211,16 +253,16 @@ async def collab_socket(ws: WebSocket, model_id: str, token: str = Query(""), vi
                     except Exception as e:  # invalid payload
                         await ws.send_json({"type": "error", "message": f"Rejected edit: {str(e)[:200]}"})
                         continue
-                    stale = int(msg.get("base_version", room.version)) != room.version
                     room.version += 1
                     summary = msg.get("summary") or diff_summary(before, project)
                     _record(db, model_id, user.email, peer.name, "edit", summary, room.version,
                             project.model_dump_json())
-                    out = {"type": "project", "version": room.version, "project": project.model_dump(mode="json"),
-                           "author": peer.public(), "summary": summary, "merged_over_newer": stale}
+                    dumped = project.model_dump(mode="json")
+                    out = {"type": "project", "version": room.version, "project": dumped,
+                           "author": peer.public(), "summary": summary, "conflicts": conflicts}
                     await hub.broadcast(model_id, out, exclude=peer.client_id)
                     await ws.send_json({"type": "ack", "version": room.version, "summary": summary,
-                                        "merged_over_newer": stale})
+                                        "project": dumped, "conflicts": conflicts})
             elif kind == "ping":
                 await ws.send_json({"type": "pong"})
     except WebSocketDisconnect:
@@ -373,7 +415,7 @@ async def restore(model_id: str, activity_id: int, user: UserProfile = Depends(g
                 project.model_dump_json())
     msg = {"type": "project", "version": room.version, "project": project.model_dump(mode="json"),
            "author": {"name": user.full_name or user.email, "email": user.email, "color": "#94a3b8"},
-           "summary": summary, "merged_over_newer": False}
+           "summary": summary, "conflicts": []}
     await hub.broadcast(model_id, msg)
     return {"version": room.version, "project": project, "summary": summary}
 

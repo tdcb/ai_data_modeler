@@ -17,7 +17,8 @@ import { ApiKeySettingsModal } from './components/modals/ApiKeySettingsModal';
 import { McpIntegrationModal } from './components/modals/McpIntegrationModal';
 import { RemoteRepoModal } from './components/modals/RemoteRepoModal';
 import { ERDCanvas } from './components/canvas/ERDCanvas';
-import { useModelStore } from './store/useModelStore';
+import { AUTH_TOKEN_KEY, useModelStore } from './store/useModelStore';
+import { api } from './services/api';
 import {
   X,
   Loader2,
@@ -72,7 +73,19 @@ export const App: React.FC = () => {
   const setWorkspaceView = useModelStore((s) => s.setWorkspaceView);
 
   useEffect(() => {
-    loadInitialProject();
+    // Keep the session across page reloads (tab-scoped) so live collaboration reconnects automatically.
+    const saved = sessionStorage.getItem(AUTH_TOKEN_KEY);
+    if (!saved) {
+      loadInitialProject();
+      return;
+    }
+    api
+      .getMe(saved)
+      .then((user) =>
+        useModelStore.setState({ isAuthenticated: true, authToken: saved, currentUser: user, isLoginModalOpen: false })
+      )
+      .catch(() => sessionStorage.removeItem(AUTH_TOKEN_KEY))
+      .finally(() => loadInitialProject());
   }, [loadInitialProject]);
 
   // App-wide model undo/redo shared by Canvas, Dictionary, Editor and AI Companion. Free-text fields keep their

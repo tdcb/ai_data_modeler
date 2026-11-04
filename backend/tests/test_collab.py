@@ -1,4 +1,6 @@
 """Collaboration: live editing over WebSocket, presence, comments, sharing/roles, activity and restore."""
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -44,10 +46,33 @@ def test_live_edit_broadcast_presence_and_activity(c):
         assert got["type"] == "project" and got["version"] == ack["version"]
         assert got["project"]["entities"][first["id"]]["description"] == "Edited live by architect"
         assert first["physical_name"] in got["summary"]
-        # stale base version is accepted but flagged
-        wb.send_json({"type": "set_project", "project": got["project"], "base_version": wel_a["version"]})
-        assert wb.receive_json()["merged_over_newer"] is True
-        wa.receive_json()
+        # concurrent edits from the same base: different tables merge, the same table reports a conflict
+        ids = list(proj["entities"])
+        base_v = ack["version"]
+        pa, pb = got["project"], json.loads(json.dumps(got["project"]))
+        pa["entities"][ids[1]]["description"] = "A edits table 2"
+        pb["entities"][ids[2]]["description"] = "B edits table 3"
+        pb["entities"][ids[1]]["description"] = "B also edits table 2"
+        wa.send_json({"type": "set_project", "project": pa, "base_version": base_v})
+        assert wa.receive_json()["type"] == "ack"
+        assert wb.receive_json()["type"] == "project"
+        wb.send_json({"type": "set_project", "project": pb, "base_version": base_v})
+        ack_b = wb.receive_json()
+        assert ack_b["type"] == "ack" and ack_b["conflicts"] == [pb["entities"][ids[1]]["physical_name"]]
+        seen_a = wa.receive_json()
+        assert seen_a["project"] == ack_b["project"]
+        merged = ack_b["project"]["entities"]
+        assert merged[ids[1]]["description"] == "B also edits table 2"
+        assert merged[ids[2]]["description"] == "B edits table 3"
+        # an edit to a different table from a stale base keeps the other user's newer change
+        pa2 = json.loads(json.dumps(pa))
+        pa2["entities"][ids[3]]["description"] = "A edits table 4 from stale base"
+        wa.send_json({"type": "set_project", "project": pa2, "base_version": base_v + 1})
+        ack_a2 = wa.receive_json()
+        assert ack_a2["conflicts"] == []
+        e2 = ack_a2["project"]["entities"]
+        assert e2[ids[2]]["description"] == "B edits table 3" and e2[ids[3]]["description"].startswith("A edits table 4")
+        wb.receive_json()
     feed = c.get("/api/collab/workspace/activity", headers={"Authorization": f"Bearer {a}"}).json()
     assert feed[0]["kind"] == "edit" and feed[0]["restorable"]
 
